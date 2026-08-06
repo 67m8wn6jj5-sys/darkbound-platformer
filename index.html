@@ -6,13 +6,22 @@
   <meta name="theme-color" content="#070910" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Darkbound Platformer v0.1.0</title>
-  <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="style.css" />
+  <title>Darkbound Platformer v0.1.1</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <main id="game-shell">
     <div id="game"></div>
+
+    <div id="startup-error" hidden role="alert">
+      <div class="error-card">
+        <strong>Darkbound could not start</strong>
+        <span data-error-message>Unknown startup error.</span>
+        <small>Reload this page. If the message remains, send a screenshot.</small>
+      </div>
+    </div>
+
     <div id="rotate-overlay" aria-hidden="true">
       <div class="rotate-card">
         <div class="phone-icon">↻</div>
@@ -21,7 +30,8 @@
       </div>
     </div>
   </main>
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
-  <script type="module" src="src/main.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js" crossorigin="anonymous"></script>
+  <script type="module" src="./src/main.js"></script>
 </body>
 </html>
