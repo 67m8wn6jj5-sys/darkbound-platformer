@@ -5,8 +5,12 @@ function showStartupError(error) {
   const panel = document.getElementById('startup-error');
   if (!panel) return;
   panel.hidden = false;
-  panel.querySelector('[data-error-message]').textContent = error?.message || String(error);
+  const message = panel.querySelector('[data-error-message]');
+  if (message) message.textContent = error?.message || String(error);
 }
+
+window.addEventListener('error', event => showStartupError(event.error || event.message));
+window.addEventListener('unhandledrejection', event => showStartupError(event.reason));
 
 try {
   if (!window.Phaser) throw new Error('Phaser failed to load. Refresh the page and check your connection.');
@@ -25,7 +29,10 @@ try {
       default: 'arcade',
       arcade: { debug: false }
     },
-    input: { gamepad: true, activePointers: 5 },
+    input: {
+      gamepad: typeof navigator.getGamepads === 'function',
+      activePointers: 5
+    },
     scene: [GameScene],
     render: { antialias: true, pixelArt: false }
   };
@@ -34,15 +41,6 @@ try {
   game.events.once('ready', () => {
     document.documentElement.dataset.gameReady = 'true';
   });
-
-  window.addEventListener('error', event => showStartupError(event.error || event.message));
-  window.addEventListener('unhandledrejection', event => showStartupError(event.reason));
-
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('../sw.js').catch(error => console.warn('Service worker unavailable:', error));
-    });
-  }
 } catch (error) {
   showStartupError(error);
 }
