@@ -3,9 +3,38 @@
 html, body, #game-shell, #game { margin:0; width:100%; height:100%; overflow:hidden; background:#05060a; touch-action:none; }
 body { position:fixed; inset:0; font-family:system-ui,-apple-system,Segoe UI,sans-serif; }
 canvas { display:block; width:100%!important; height:100%!important; }
-#rotate-overlay { display:none; position:fixed; inset:0; z-index:999; align-items:center; justify-content:center; padding:calc(env(safe-area-inset-top) + 24px) calc(env(safe-area-inset-right) + 24px) calc(env(safe-area-inset-bottom) + 24px) calc(env(safe-area-inset-left) + 24px); background:radial-gradient(circle at center,#14182a,#05060a 65%); }
-.rotate-card { max-width:360px; text-align:center; padding:28px; border:1px solid #39415d; border-radius:22px; background:#0d1020ee; box-shadow:0 18px 60px #000a; }
-.rotate-card strong { display:block; font-size:24px; margin:10px 0 8px; }
-.rotate-card span { opacity:.72; line-height:1.4; }
+
+#startup-error,
+#rotate-overlay {
+  position:fixed;
+  inset:0;
+  z-index:999;
+  align-items:center;
+  justify-content:center;
+  padding:calc(env(safe-area-inset-top) + 24px) calc(env(safe-area-inset-right) + 24px) calc(env(safe-area-inset-bottom) + 24px) calc(env(safe-area-inset-left) + 24px);
+  background:radial-gradient(circle at center,#14182a,#05060a 65%);
+}
+
+#startup-error { display:flex; z-index:1200; }
+#startup-error[hidden] { display:none; }
+#rotate-overlay { display:none; }
+
+.rotate-card,
+.error-card {
+  max-width:420px;
+  text-align:center;
+  padding:28px;
+  border:1px solid #39415d;
+  border-radius:22px;
+  background:#0d1020ee;
+  box-shadow:0 18px 60px #000a;
+}
+
+.rotate-card strong,
+.error-card strong { display:block; font-size:24px; margin:10px 0 8px; }
+.rotate-card span,
+.error-card span { display:block; opacity:.78; line-height:1.4; }
+.error-card small { display:block; margin-top:14px; opacity:.58; line-height:1.4; }
 .phone-icon { font-size:48px; }
+
 @media (orientation:portrait) and (max-width:900px) { #rotate-overlay { display:flex; } }
