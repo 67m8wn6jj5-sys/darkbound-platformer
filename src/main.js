@@ -1,4 +1,4 @@
-import { GameScene } from './GameScene.js';
+import { GameSceneV05 } from './GameSceneV05.js';
 
 function showStartupError(error) {
   console.error(error);
@@ -33,7 +33,7 @@ try {
       gamepad: typeof navigator.getGamepads === 'function',
       activePointers: 5
     },
-    scene: [GameScene],
+    scene: [GameSceneV05],
     render: { antialias: true, pixelArt: false }
   };
 
