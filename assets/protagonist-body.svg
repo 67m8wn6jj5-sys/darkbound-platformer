@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 128">
+  <defs>
+    <linearGradient id="armor" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#2b2d2f"/><stop offset="0.5" stop-color="#101214"/><stop offset="1" stop-color="#050607"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" x2="1"><stop offset="0" stop-color="#6f5428"/><stop offset="0.55" stop-color="#c59a4b"/><stop offset="1" stop-color="#4d391d"/></linearGradient>
+    <linearGradient id="hair" x1="0" x2="1"><stop offset="0" stop-color="#0a5c48"/><stop offset="0.5" stop-color="#10a678"/><stop offset="1" stop-color="#52e0a9"/></linearGradient>
+    <linearGradient id="cloak" x1="0" x2="1"><stop offset="0" stop-color="#07090a"/><stop offset="0.55" stop-color="#12171a"/><stop offset="1" stop-color="#050607"/></linearGradient>
+    <filter id="softGlow"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <ellipse cx="46" cy="119" rx="27" ry="5" fill="#000" opacity=".45"/>
+  <path d="M42 41 C31 49 25 64 22 84 L17 113 C27 109 35 108 43 114 C48 105 51 97 52 86 L54 49 Z" fill="url(#cloak)" stroke="#6c5128" stroke-width="1.2"/>
+  <path d="M35 40 C23 39 18 31 23 20 C28 7 48 4 58 12 C67 19 66 31 60 40 C70 43 76 54 73 68 C70 79 61 85 51 83 C42 80 35 72 33 62 C30 54 30 46 35 40Z" fill="#141719" stroke="#9a7437" stroke-width="1.5"/>
+  <path d="M29 41 L20 48 L25 65 L34 60 Z" fill="url(#armor)" stroke="url(#gold)" stroke-width="2"/>
+  <path d="M61 41 L73 48 L69 66 L58 60 Z" fill="url(#armor)" stroke="url(#gold)" stroke-width="2"/>
+  <path d="M34 43 L58 43 L64 66 L55 91 L37 91 L29 66Z" fill="url(#armor)" stroke="#b18742" stroke-width="1.6"/>
+  <path d="M37 48 L46 56 L55 48 M33 58 L46 68 L60 57 M35 72 L46 79 L57 71" fill="none" stroke="#7f612f" stroke-width="1.4" opacity=".9"/>
+  <path d="M31 63 L21 86 L25 103 L35 89 L40 67Z" fill="url(#armor)" stroke="#8d6931" stroke-width="1.5"/>
+  <path d="M61 63 L72 86 L68 103 L57 89 L53 67Z" fill="url(#armor)" stroke="#8d6931" stroke-width="1.5"/>
+  <path d="M38 90 L31 116 L42 116 L47 94Z" fill="#0d1012" stroke="#7f612f" stroke-width="1.4"/>
+  <path d="M54 90 L61 116 L50 116 L45 94Z" fill="#0d1012" stroke="#7f612f" stroke-width="1.4"/>
+  <path d="M28 18 C34 4 55 5 62 15 C66 21 65 28 60 34 C56 28 54 22 50 18 C46 25 41 31 34 34 C30 29 27 24 28 18Z" fill="url(#hair)" stroke="#092f27" stroke-width="1" filter="url(#softGlow)"/>
+  <path d="M30 27 C22 35 18 47 20 60 C24 52 29 49 34 45 C29 56 29 68 33 80 C37 69 39 58 40 47" fill="none" stroke="#15956f" stroke-width="4" stroke-linecap="round"/>
+  <path d="M54 20 C66 28 70 39 68 52 C63 44 60 40 55 36 C62 49 62 62 58 75 C54 64 51 54 50 43" fill="none" stroke="#2bc18f" stroke-width="3.4" stroke-linecap="round"/>
+  <path d="M43 21 C38 23 36 28 36 34 C38 39 42 41 46 41 C51 41 55 38 57 33 C56 27 52 23 48 21Z" fill="#6d4938" stroke="#1e1715" stroke-width="1"/>
+  <path d="M38 32 C41 29 44 28 46 30 M49 30 C52 28 55 29 56 32" stroke="#201b18" stroke-width="1.4" fill="none"/>
+  <path d="M39 35 C45 42 51 42 56 35 C54 43 51 47 47 48 C43 47 40 43 39 35Z" fill="#221815"/>
+  <circle cx="42" cy="32" r="1.2" fill="#bdf9df"/><circle cx="53" cy="32" r="1.2" fill="#bdf9df"/>
+  <path d="M27 92 L35 92 L37 101 L31 106 L25 101Z" fill="#0c0f10" stroke="#a67c37" stroke-width="1"/>
+  <path d="M65 92 L57 92 L55 101 L61 106 L67 101Z" fill="#0c0f10" stroke="#a67c37" stroke-width="1"/>
+</svg>
