@@ -11,19 +11,30 @@ export const TUNING = Object.freeze({
   maxFallSpeed: 900,
   coyoteMs: 110,
   jumpBufferMs: 130,
+
   rollSpeed: 560,
   rollDurationMs: 380,
   rollCooldownMs: 680,
-  attackDurationMs: 250,
-  attackActiveStartMs: 70,
-  attackActiveEndMs: 175,
-  attackCooldownMs: 330,
-  attackRange: 78,
+
+  comboResetMs: 520,
+  attackDurationsMs: [230, 245, 330],
+  attackActiveStartMs: [55, 65, 90],
+  attackActiveEndMs: [145, 165, 230],
+  attackRanges: [78, 84, 100],
+  attackKnockback: [180, 220, 340],
+  hitStopMs: [38, 45, 65],
+
   playerMaxHp: 5,
   playerInvulnMs: 900,
+
   enemyMaxHp: 3,
-  enemySpeed: 72,
+  enemySpeed: 74,
   enemyAggroRange: 390,
-  enemyContactDamage: 1,
+  enemyAttackRange: 82,
+  enemyWindupMs: 520,
+  enemyAttackRecoveryMs: 720,
+  enemyAttackCooldownMs: 1150,
+  enemyAttackDamage: 1,
+
   respawnY: 900
 });
