@@ -3,9 +3,12 @@ export class InputManager {
     this.scene = scene;
     this.keys = scene.input.keyboard?.addKeys({
       left:'A', right:'D', left2:'LEFT', right2:'RIGHT',
-      jump:'SPACE', jump2:'W', jump3:'UP', dodge:'SHIFT', dodge2:'K', pause:'ESC'
+      jump:'SPACE', jump2:'W', jump3:'UP',
+      dodge:'SHIFT', dodge2:'K',
+      attack:'J', attack2:'F',
+      restart:'R', pause:'ESC'
     }) ?? {};
-    this.touch = { left:false, right:false, jumpPressed:false, jumpHeld:false, dodgePressed:false };
+    this.touch = { left:false, right:false, jumpPressed:false, jumpHeld:false, dodgePressed:false, attackPressed:false };
     this.lastSource = 'Touch';
     this.pad = null;
 
@@ -39,9 +42,10 @@ export class InputManager {
     const keyboardLeft = this.keyDown('left') || this.keyDown('left2');
     const keyboardRight = this.keyDown('right') || this.keyDown('right2');
 
-    if (keyboardLeft || keyboardRight || this.keyPressed('jump') || this.keyPressed('dodge')) this.lastSource='Keyboard';
-    if (padLeft || padRight || this.pad?.A || this.pad?.B) this.lastSource='Controller';
-    if (this.touch.left || this.touch.right || this.touch.jumpHeld || this.touch.dodgePressed) this.lastSource='Touch';
+    const keyboardActivity = keyboardLeft || keyboardRight || this.keyPressed('jump') || this.keyPressed('dodge') || this.keyPressed('attack');
+    if (keyboardActivity) this.lastSource='Keyboard';
+    if (padLeft || padRight || this.pad?.A || this.pad?.B || this.pad?.X) this.lastSource='Controller';
+    if (this.touch.left || this.touch.right || this.touch.jumpHeld || this.touch.dodgePressed || this.touch.attackPressed) this.lastSource='Touch';
 
     let move = 0;
     if (keyboardLeft || padLeft || this.touch.left) move -= 1;
@@ -58,15 +62,22 @@ export class InputManager {
       || this.keyPressed('dodge2')
       || (!!this.pad?.B && !this._padB)
       || this.touch.dodgePressed;
+    const attackPressed = this.keyPressed('attack')
+      || this.keyPressed('attack2')
+      || (!!this.pad?.X && !this._padX)
+      || this.touch.attackPressed;
+    const restartPressed = this.keyPressed('restart') || attackPressed || jumpPressed;
     const startPressed = !!this.pad?.buttons?.[9]?.pressed;
     const pausePressed = this.keyPressed('pause') || (startPressed && !this._padStart);
 
     this._padA=!!this.pad?.A;
     this._padB=!!this.pad?.B;
+    this._padX=!!this.pad?.X;
     this._padStart=startPressed;
     this.touch.jumpPressed=false;
     this.touch.dodgePressed=false;
+    this.touch.attackPressed=false;
 
-    return { move, jumpPressed, jumpHeld, dodgePressed, pausePressed };
+    return { move, jumpPressed, jumpHeld, dodgePressed, attackPressed, restartPressed, pausePressed };
   }
 }
