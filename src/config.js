@@ -14,5 +14,16 @@ export const TUNING = Object.freeze({
   rollSpeed: 560,
   rollDurationMs: 380,
   rollCooldownMs: 680,
+  attackDurationMs: 250,
+  attackActiveStartMs: 70,
+  attackActiveEndMs: 175,
+  attackCooldownMs: 330,
+  attackRange: 78,
+  playerMaxHp: 5,
+  playerInvulnMs: 900,
+  enemyMaxHp: 3,
+  enemySpeed: 72,
+  enemyAggroRange: 390,
+  enemyContactDamage: 1,
   respawnY: 900
 });
