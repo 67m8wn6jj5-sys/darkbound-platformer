@@ -2,6 +2,11 @@ import { TUNING } from './config.js';
 import { InputManager } from './InputManager.js';
 import { TouchControls } from './TouchControls.js';
 
+function moveTowards(current, target, maxDelta) {
+  if (Math.abs(target - current) <= maxDelta) return target;
+  return current + Math.sign(target - current) * maxDelta;
+}
+
 export class GameScene extends Phaser.Scene {
   constructor(){super('GameScene');}
   create(){
@@ -56,8 +61,8 @@ export class GameScene extends Phaser.Scene {
     const rolling=time<this.rollEndsAt;
     if(!rolling){
       const target=cmd.move*TUNING.runSpeed; const accel=grounded?TUNING.groundAcceleration:TUNING.airAcceleration;
-      b.velocity.x=Phaser.Math.MoveTowards(b.velocity.x,target,accel*delta/1000);
-      if(cmd.move===0)b.velocity.x=Phaser.Math.MoveTowards(b.velocity.x,0,(grounded?TUNING.groundDrag:TUNING.airDrag)*delta/1000);
+      b.velocity.x=moveTowards(b.velocity.x,target,accel*delta/1000);
+      if(cmd.move===0)b.velocity.x=moveTowards(b.velocity.x,0,(grounded?TUNING.groundDrag:TUNING.airDrag)*delta/1000);
       const coyote=time-this.lastGroundedAt<=TUNING.coyoteMs, buffered=time-this.jumpBufferedAt<=TUNING.jumpBufferMs;
       if(buffered&&coyote){b.setVelocityY(TUNING.jumpVelocity);this.jumpBufferedAt=-Infinity;this.lastGroundedAt=-Infinity;}
       if(b.velocity.y<0&&!cmd.jumpHeld)b.velocity.y+=TUNING.gravityY*(TUNING.lowJumpGravityMultiplier-1)*delta/1000;
