@@ -19,6 +19,7 @@ export class TouchControls {
     this.right=this.makeButton('▶',()=>this.input.touch.right=true,()=>this.input.touch.right=false);
     this.jump=this.makeButton('A',()=>{this.input.touch.jumpPressed=true;this.input.touch.jumpHeld=true;},()=>this.input.touch.jumpHeld=false);
     this.dodge=this.makeButton('B',()=>this.input.touch.dodgePressed=true);
+    this.attack=this.makeButton('X',()=>this.input.touch.attackPressed=true);
     this.pause=this.makeButton('Ⅱ',()=>this.scene.togglePause()); this.pause.zone.setSize(70,70);
     this.layout();
   }
@@ -26,7 +27,9 @@ export class TouchControls {
     const w=this.scene.scale.width,h=this.scene.scale.height;
     const bottom=h-62, left=72;
     this.left.zone.setPosition(left,bottom); this.right.zone.setPosition(left+88,bottom);
-    this.jump.zone.setPosition(w-72,bottom); this.dodge.zone.setPosition(w-156,bottom+4);
+    this.jump.zone.setPosition(w-72,bottom);
+    this.dodge.zone.setPosition(w-156,bottom+4);
+    this.attack.zone.setPosition(w-240,bottom);
     this.pause.zone.setPosition(w-42,42);
     this.items.forEach(i=>this.draw(i,i===this.pause?24:34));
   }
