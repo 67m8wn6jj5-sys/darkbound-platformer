@@ -21,6 +21,36 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Build separate protagonist animation PNGs
+        run: |
+          python -m pip install --quiet pillow
+          python - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+
+          source = Image.open('assets/v05/protagonist-atlas.png').convert('RGBA')
+          out = Path('assets/v05/animations')
+          out.mkdir(parents=True, exist_ok=True)
+          sequences = {
+              'idle': (0, 7),
+              'run': (1, 7),
+              'jump': (2, 6),
+              'attack1': (3, 7),
+              'attack2': (4, 7),
+              'attack3': (5, 8),
+              'roll': (6, 8),
+              'hit': (7, 8),
+              'death': (8, 8),
+          }
+          size = 128
+          for name, (row, count) in sequences.items():
+              strip = Image.new('RGBA', (count * size, size), (0, 0, 0, 0))
+              for col in range(count):
+                  frame = source.crop((col*size, row*size, (col+1)*size, (row+1)*size))
+                  strip.paste(frame, (col*size, 0), frame)
+              strip.save(out / f'{name}.png')
+          PY
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
