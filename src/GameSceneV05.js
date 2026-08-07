@@ -5,50 +5,78 @@ const FRAME_SIZE = 128;
 const FRAMES_PER_ROW = 8;
 
 const SEQUENCES = Object.freeze({
-  idle:    { row:0, frames:7, frameRate:6,  repeat:-1 },
-  run:     { row:1, frames:7, frameRate:14, repeat:-1 },
-  jump:    { row:2, frames:6, frameRate:10, repeat:0 },
-  attack1: { row:3, frames:7, frameRate:36, repeat:0 },
-  attack2: { row:4, frames:7, frameRate:33, repeat:0 },
-  attack3: { row:5, frames:8, frameRate:29, repeat:0 },
-  roll:    { row:6, frames:8, frameRate:21, repeat:0 },
-  hit:     { row:7, frames:8, frameRate:30, repeat:0 },
-  death:   { row:8, frames:8, frameRate:12, repeat:0 }
+  idle:    { row:0, frames:7, frameRate:6 },
+  run:     { row:1, frames:7, frameRate:14 },
+  jump:    { row:2, frames:6, frameRate:10 },
+  attack1: { row:3, frames:7, frameRate:36 },
+  attack2: { row:4, frames:7, frameRate:33 },
+  attack3: { row:5, frames:8, frameRate:29 },
+  roll:    { row:6, frames:8, frameRate:21 },
+  hit:     { row:7, frames:8, frameRate:30 },
+  death:   { row:8, frames:8, frameRate:12 }
 });
 
 export class GameSceneV05 extends GameScene {
   preload(){
-    this.load.spritesheet('v05-protagonist','./assets/v05/protagonist-atlas.png',{
-      frameWidth:FRAME_SIZE,
-      frameHeight:FRAME_SIZE
-    });
+    // Load as a normal image. Safari/WebGL was unreliable when the indexed PNG
+    // was handed directly to Phaser's spritesheet/animation pipeline.
+    this.load.image('v05-protagonist-source','./assets/v05/protagonist-atlas.png?v=052');
   }
 
   create(){
+    this.prepareProtagonistRuntimeTexture();
     super.create();
-    this.installProtagonistAnimations();
-    this.hitAnimEndsAt=0;
+
+    this.hitAnimStartsAt=-Infinity;
+    this.hitAnimEndsAt=-Infinity;
+    this.deathAnimStartsAt=-Infinity;
     this.wasGrounded=true;
     this.landingAnimEndsAt=0;
     this.attackFlash.setAlpha(.08);
-    this.player.art.play('v05-anim-idle');
+    this.setProtagonistFrame(0);
   }
 
-  installProtagonistAnimations(){
-    Object.entries(SEQUENCES).forEach(([name,sequence])=>{
-      const key=`v05-anim-${name}`;
-      if(this.anims.exists(key))return;
-      const start=sequence.row*FRAMES_PER_ROW;
-      this.anims.create({
-        key,
-        frames:this.anims.generateFrameNumbers('v05-protagonist',{
-          start,
-          end:start+sequence.frames-1
-        }),
-        frameRate:sequence.frameRate,
-        repeat:sequence.repeat
-      });
-    });
+  prepareProtagonistRuntimeTexture(){
+    this.protagonistSource=this.textures.get('v05-protagonist-source').getSourceImage();
+    const existing=this.textures.get('v05-protagonist-frame');
+    if(existing?.key && existing.key!=='__MISSING')this.textures.remove('v05-protagonist-frame');
+
+    this.protagonistCanvas=this.textures.createCanvas('v05-protagonist-frame',FRAME_SIZE,FRAME_SIZE);
+    this.protagonistContext=this.protagonistCanvas.getContext();
+    this.currentProtagonistFrame=-1;
+    this.setProtagonistFrame(0);
+  }
+
+  setProtagonistFrame(frameNumber){
+    if(!this.protagonistCanvas || !this.protagonistSource)return;
+    const maxFrame=(9*FRAMES_PER_ROW)-1;
+    const frame=Math.max(0,Math.min(maxFrame,Math.floor(frameNumber)));
+    if(frame===this.currentProtagonistFrame)return;
+
+    const sx=(frame%FRAMES_PER_ROW)*FRAME_SIZE;
+    const sy=Math.floor(frame/FRAMES_PER_ROW)*FRAME_SIZE;
+    const ctx=this.protagonistContext;
+    ctx.clearRect(0,0,FRAME_SIZE,FRAME_SIZE);
+    ctx.drawImage(
+      this.protagonistSource,
+      sx,sy,FRAME_SIZE,FRAME_SIZE,
+      0,0,FRAME_SIZE,FRAME_SIZE
+    );
+    this.protagonistCanvas.refresh();
+    this.currentProtagonistFrame=frame;
+  }
+
+  frameFromLoop(name,time){
+    const s=SEQUENCES[name];
+    const local=Math.floor((time/1000)*s.frameRate)%s.frames;
+    return s.row*FRAMES_PER_ROW+local;
+  }
+
+  frameFromProgress(name,progress){
+    const s=SEQUENCES[name];
+    const clamped=Math.max(0,Math.min(.999,progress));
+    const local=Math.min(s.frames-1,Math.floor(clamped*s.frames));
+    return s.row*FRAMES_PER_ROW+local;
   }
 
   createPlayer(x,y){
@@ -56,7 +84,7 @@ export class GameSceneV05 extends GameScene {
     const shadow=this.add.ellipse(0,25,48,11,0x000000,.44);
     const aura=this.add.ellipse(0,4,42,74,0x69ff52,.025)
       .setStrokeStyle(1,0x76ff42,.10);
-    const art=this.add.sprite(0,-27,'v05-protagonist',0)
+    const art=this.add.image(0,-27,'v05-protagonist-frame')
       .setOrigin(.5,.5)
       .setDisplaySize(96,96);
     const weaponProxy=this.add.rectangle(16,0,54,8,0xffffff,0).setOrigin(.08,.5);
@@ -76,22 +104,18 @@ export class GameSceneV05 extends GameScene {
     return p;
   }
 
-  playProtagonist(name){
-    const key=`v05-anim-${name}`;
-    if(!this.anims.exists(key))return;
-    if(this.player.art.anims.currentAnim?.key===key && this.player.art.anims.isPlaying)return;
-    this.player.art.play(key,true);
-  }
-
   damagePlayer(time,enemy){
     const hpBefore=this.playerHp;
     super.damagePlayer(time,enemy);
-    if(this.playerHp<hpBefore && !this.dead)this.hitAnimEndsAt=time+250;
+    if(this.playerHp<hpBefore && !this.dead){
+      this.hitAnimStartsAt=time;
+      this.hitAnimEndsAt=time+250;
+    }
   }
 
   killPlayer(){
+    this.deathAnimStartsAt=this.time.now;
     super.killPlayer();
-    this.player.art?.play('v05-anim-death',true);
   }
 
   drawAttackArc(active,step){
@@ -107,45 +131,54 @@ export class GameSceneV05 extends GameScene {
     this.attackArc.strokePath();
   }
 
+  updateProtagonistFrame(time){
+    const body=this.player?.body;
+    if(!body)return;
+    const grounded=!!body.blocked.down;
+    let frame=0;
+
+    if(this.dead){
+      const elapsed=Math.max(0,time-this.deathAnimStartsAt);
+      const duration=((SEQUENCES.death.frames-1)/SEQUENCES.death.frameRate)*1000;
+      frame=this.frameFromProgress('death',Math.min(1,elapsed/Math.max(1,duration)));
+    } else if(time<this.hitAnimEndsAt){
+      frame=this.frameFromProgress('hit',(time-this.hitAnimStartsAt)/250);
+    } else if(this.state==='rolling'){
+      const startedAt=this.rollEndsAt-TUNING.rollDurationMs;
+      frame=this.frameFromProgress('roll',(time-startedAt)/TUNING.rollDurationMs);
+    } else if(this.state?.startsWith('attack-')){
+      const name=['attack1','attack2','attack3'][this.comboStep]||'attack1';
+      const duration=TUNING.attackDurationsMs[this.comboStep]||TUNING.attackDurationsMs[0];
+      frame=this.frameFromProgress(name,(time-this.attackStartsAt)/duration);
+    } else if(!grounded){
+      const local=body.velocity.y<-260?1:(body.velocity.y<80?2:(body.velocity.y<420?3:4));
+      frame=SEQUENCES.jump.row*FRAMES_PER_ROW+local;
+    } else if(!this.wasGrounded){
+      this.landingAnimEndsAt=time+95;
+      frame=SEQUENCES.jump.row*FRAMES_PER_ROW+5;
+    } else if(time<this.landingAnimEndsAt){
+      frame=SEQUENCES.jump.row*FRAMES_PER_ROW+5;
+    } else if(this.state==='running'){
+      frame=this.frameFromLoop('run',time);
+    } else {
+      frame=this.frameFromLoop('idle',time);
+    }
+
+    this.setProtagonistFrame(frame);
+    this.wasGrounded=grounded;
+  }
+
   update(time,delta){
     super.update(time,delta);
     if(!this.player?.art)return;
 
-    const art=this.player.art;
     const body=this.player.body;
-    const grounded=!!body?.blocked?.down;
-    art.setPosition(0,-27).setDisplaySize(96,96);
+    this.player.art.setPosition(0,-27).setDisplaySize(96,96);
     this.player.aura.setAlpha(.02+Math.min(.04,Math.abs(body?.velocity?.x||0)/8000));
-
-    if(this.dead){
-      if(art.anims.currentAnim?.key!=='v05-anim-death')art.play('v05-anim-death',true);
-    } else if(time<this.hitAnimEndsAt){
-      this.playProtagonist('hit');
-    } else if(this.state==='rolling'){
-      this.playProtagonist('roll');
-    } else if(this.state?.startsWith('attack-')){
-      this.playProtagonist(['attack1','attack2','attack3'][this.comboStep]||'attack1');
-    } else if(!grounded){
-      const jumpFrame=body.velocity.y<-260?1:(body.velocity.y<80?2:(body.velocity.y<420?3:4));
-      art.anims.stop();
-      art.setFrame((SEQUENCES.jump.row*FRAMES_PER_ROW)+jumpFrame);
-    } else if(!this.wasGrounded){
-      this.landingAnimEndsAt=time+95;
-      art.anims.stop();
-      art.setFrame((SEQUENCES.jump.row*FRAMES_PER_ROW)+5);
-    } else if(time<this.landingAnimEndsAt){
-      art.anims.stop();
-      art.setFrame((SEQUENCES.jump.row*FRAMES_PER_ROW)+5);
-    } else if(this.state==='running'){
-      this.playProtagonist('run');
-    } else {
-      this.playProtagonist('idle');
-    }
-
-    this.wasGrounded=grounded;
+    this.updateProtagonistFrame(time);
 
     if(this.debug?.text){
-      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.5.1 PRODUCTION'));
+      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.5.2 PRODUCTION'));
     }
   }
 }
