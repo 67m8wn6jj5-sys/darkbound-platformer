@@ -11,12 +11,16 @@ export class InputManager {
     this.touch = { left:false, right:false, jumpPressed:false, jumpHeld:false, dodgePressed:false, attackPressed:false };
     this.lastSource = 'Touch';
     this.pad = null;
+    this.nativePad = null;
 
     const gamepadPlugin = scene.input.gamepad;
     if (gamepadPlugin) {
-      gamepadPlugin.once('connected', pad => {
+      gamepadPlugin.on('connected', pad => {
         this.pad = pad;
         this.lastSource = 'Controller';
+      });
+      gamepadPlugin.on('disconnected', pad => {
+        if (this.pad === pad) this.pad = null;
       });
     }
   }
@@ -30,21 +34,73 @@ export class InputManager {
     return !!key && Phaser.Input.Keyboard.JustDown(key);
   }
 
-  update() {
+  pollNativePad() {
+    if (typeof navigator.getGamepads !== 'function') {
+      this.nativePad = null;
+      return null;
+    }
+    const pads = navigator.getGamepads();
+    this.nativePad = Array.from(pads || []).find(Boolean) || null;
+    return this.nativePad;
+  }
+
+  getActivePad() {
     const gamepadPlugin = this.scene.input.gamepad;
     if (!this.pad && gamepadPlugin?.total) this.pad = gamepadPlugin.getPad(0);
+    const nativePad = this.pollNativePad();
+    return this.pad || nativePad;
+  }
 
-    const axis0 = this.pad?.axes?.[0];
-    const rawAxis = axis0?.getValue?.() ?? 0;
+  axisValue(pad, index=0) {
+    const axis = pad?.axes?.[index];
+    if (typeof axis === 'number') return axis;
+    return axis?.getValue?.() ?? 0;
+  }
+
+  buttonDown(pad, phaserName, nativeIndex) {
+    if (!pad) return false;
+    if (typeof pad?.[phaserName] === 'boolean') return pad[phaserName];
+    return !!pad?.buttons?.[nativeIndex]?.pressed;
+  }
+
+  async rumble(duration=70, strongMagnitude=.65, weakMagnitude=.25) {
+    const pad = this.pollNativePad();
+    const actuator = pad?.vibrationActuator || pad?.hapticActuators?.[0];
+    if (!actuator) return false;
+    try {
+      if (typeof actuator.playEffect === 'function') {
+        await actuator.playEffect('dual-rumble', {
+          startDelay: 0,
+          duration,
+          weakMagnitude,
+          strongMagnitude
+        });
+        return true;
+      }
+      if (typeof actuator.pulse === 'function') {
+        await actuator.pulse(Math.max(strongMagnitude, weakMagnitude), duration);
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  update() {
+    const pad = this.getActivePad();
+    const rawAxis = this.axisValue(pad,0);
     const padAxis = Math.abs(rawAxis) > .18 ? rawAxis : 0;
-    const padLeft = !!this.pad?.left || padAxis < -.18;
-    const padRight = !!this.pad?.right || padAxis > .18;
+    const padLeft = this.buttonDown(pad,'left',14) || padAxis < -.18;
+    const padRight = this.buttonDown(pad,'right',15) || padAxis > .18;
+    const padA = this.buttonDown(pad,'A',0);
+    const padB = this.buttonDown(pad,'B',1);
+    const padX = this.buttonDown(pad,'X',2);
+    const padStart = this.buttonDown(pad,'start',9);
     const keyboardLeft = this.keyDown('left') || this.keyDown('left2');
     const keyboardRight = this.keyDown('right') || this.keyDown('right2');
 
     const keyboardActivity = keyboardLeft || keyboardRight || this.keyPressed('jump') || this.keyPressed('dodge') || this.keyPressed('attack');
     if (keyboardActivity) this.lastSource='Keyboard';
-    if (padLeft || padRight || this.pad?.A || this.pad?.B || this.pad?.X) this.lastSource='Controller';
+    if (padLeft || padRight || padA || padB || padX) this.lastSource='Controller';
     if (this.touch.left || this.touch.right || this.touch.jumpHeld || this.touch.dodgePressed || this.touch.attackPressed) this.lastSource='Touch';
 
     let move = 0;
@@ -55,25 +111,24 @@ export class InputManager {
     const jumpPressed = this.keyPressed('jump')
       || this.keyPressed('jump2')
       || this.keyPressed('jump3')
-      || (!!this.pad?.A && !this._padA)
+      || (padA && !this._padA)
       || this.touch.jumpPressed;
-    const jumpHeld = this.keyDown('jump') || this.keyDown('jump2') || this.keyDown('jump3') || !!this.pad?.A || this.touch.jumpHeld;
+    const jumpHeld = this.keyDown('jump') || this.keyDown('jump2') || this.keyDown('jump3') || padA || this.touch.jumpHeld;
     const dodgePressed = this.keyPressed('dodge')
       || this.keyPressed('dodge2')
-      || (!!this.pad?.B && !this._padB)
+      || (padB && !this._padB)
       || this.touch.dodgePressed;
     const attackPressed = this.keyPressed('attack')
       || this.keyPressed('attack2')
-      || (!!this.pad?.X && !this._padX)
+      || (padX && !this._padX)
       || this.touch.attackPressed;
     const restartPressed = this.keyPressed('restart') || attackPressed || jumpPressed;
-    const startPressed = !!this.pad?.buttons?.[9]?.pressed;
-    const pausePressed = this.keyPressed('pause') || (startPressed && !this._padStart);
+    const pausePressed = this.keyPressed('pause') || (padStart && !this._padStart);
 
-    this._padA=!!this.pad?.A;
-    this._padB=!!this.pad?.B;
-    this._padX=!!this.pad?.X;
-    this._padStart=startPressed;
+    this._padA=padA;
+    this._padB=padB;
+    this._padX=padX;
+    this._padStart=padStart;
     this.touch.jumpPressed=false;
     this.touch.dodgePressed=false;
     this.touch.attackPressed=false;
