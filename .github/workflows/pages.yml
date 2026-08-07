@@ -21,96 +21,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Keep the v0.5.7/v0.5.8-temp pipeline available during the transition so
-      # this workflow-only commit cannot break the currently deployed renderer.
-      - name: Restore v0.5.7 protagonist source PNGs
-        run: |
-          set -euo pipefail
-          rm -rf assets/v05/animations
-          mkdir -p assets/v05/animations
-          cat assets/v05/bundle/chunk_* | base64 --decode > /tmp/v05-animations.tgz
-          tar -xzf /tmp/v05-animations.tgz -C assets/v05/animations
-          test "$(find assets/v05/animations -maxdepth 1 -name '*.png' | wc -l)" -eq 9
-
-      - name: Build legacy padded protagonist PNGs
-        run: |
-          python -m pip install --quiet pillow
-          python - <<'PY'
-          from PIL import Image, ImageEnhance
-          from pathlib import Path
-
-          SRC = Path('assets/v05/animations')
-          OUT = Path('assets/v05/animations58')
-          OUT.mkdir(parents=True, exist_ok=True)
-          FW = 48
-          OW = 64
-
-          sources = {
-              'idle': ('idle', list(range(7))),
-              'run': ('run', list(range(7))),
-              'jump': ('run', [1,2,3,4,5,6]),
-              'attack1': ('attack3', [0,1,2,3,4,5,6]),
-              'attack2': ('attack3', [1,2,3,4,5,6,7]),
-              'attack3': ('attack3', list(range(8))),
-              'roll': ('roll', list(range(8))),
-              'hit': ('hit', list(range(8))),
-              'death': ('death', list(range(8))),
-          }
-
-          def clean(frame):
-              im = frame.convert('RGBA')
-              px = im.load()
-              for y in range(im.height):
-                  for x in range(im.width):
-                      r,g,b,a = px[x,y]
-                      if a < 28 or (b >= r + 3 and b >= g + 3 and (r+g+b) < 300):
-                          px[x,y] = (0,0,0,0)
-                      else:
-                          px[x,y] = (r,g,b,255)
-              bbox = im.getbbox()
-              if not bbox:
-                  return Image.new('RGBA',(OW,OW),(0,0,0,0))
-              sub = im.crop(bbox)
-              rgb = Image.new('RGB', sub.size, (0,0,0))
-              rgb.paste(sub, mask=sub.getchannel('A'))
-              rgb = ImageEnhance.Color(rgb).enhance(1.32)
-              rgb = ImageEnhance.Contrast(rgb).enhance(1.10)
-              sub = Image.merge('RGBA', (*rgb.split(), sub.getchannel('A')))
-              scale = min(56/sub.width, 56/sub.height, 1.35)
-              nw=max(1,round(sub.width*scale)); nh=max(1,round(sub.height*scale))
-              sub=sub.resize((nw,nh),Image.Resampling.LANCZOS)
-              sub.putalpha(sub.getchannel('A').point(lambda v:255 if v>=72 else 0))
-              canvas=Image.new('RGBA',(OW,OW),(0,0,0,0))
-              canvas.alpha_composite(sub,((OW-nw)//2,60-nh))
-              return canvas
-
-          loaded={}
-          for source_name,_ in sources.values():
-              if source_name not in loaded:
-                  loaded[source_name]=Image.open(SRC/f'{source_name}.png').convert('RGBA')
-          for out_name,(source_name,indices) in sources.items():
-              src=loaded[source_name]
-              strip=Image.new('RGBA',(OW*len(indices),OW),(0,0,0,0))
-              for col,idx in enumerate(indices):
-                  strip.alpha_composite(clean(src.crop((idx*FW,0,(idx+1)*FW,FW))),(col*OW,0))
-              strip.save(OUT/f'{out_name}.png','PNG',optimize=True)
-          PY
-
-      - name: Unpack v0.5.8 production protagonist frames
+      - name: Unpack v0.5.8 R2 production protagonist frames
         run: |
           set -euo pipefail
           rm -rf assets/v05/production58
           mkdir -p assets/v05/production58
-          unzip -q Darkbound_v0.5.8_Production_Sprites.zip -d assets/v05/production58
+          unzip -q -o Darkbound_v0.5.8_Production_Sprites_R2.zip -d assets/v05/production58
           test -f assets/v05/production58/manifest.json
           test "$(find assets/v05/production58 -type f -name '*.png' | wc -l)" -eq 54
           python - <<'PY'
           import json
           from pathlib import Path
-          p=Path('assets/v05/production58/manifest.json')
-          data=json.loads(p.read_text())
-          assert data['version']=='v0.5.8-production-cleanup'
+          data=json.loads(Path('assets/v05/production58/manifest.json').read_text())
+          assert data['version']=='v0.5.8-cleanup-r2'
+          assert data['canvas']==[512,512]
           assert sum(v['frames'] for v in data['sequences'].values())==54
+          assert data['sequences']['idle']['runtime_frames']==[1,2]
           PY
 
       - name: Configure Pages
