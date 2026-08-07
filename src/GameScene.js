@@ -142,7 +142,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   queueAttack(time){
-    if(time>=this.attackStartsAt+90 && time<=this.attackEndsAt+80)this.attackQueued=true;
+    if(time>=this.attackStartsAt && time<=this.attackEndsAt+TUNING.attackInputBufferMs)this.attackQueued=true;
   }
 
   finishOrChainAttack(time){
@@ -384,7 +384,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.cameras.main.followOffset.x=Phaser.Math.Linear(this.cameras.main.followOffset.x,-this.facing*95,.05);
-    this.debug.setText(`DARKBOUND v0.3.0\nState: ${this.state}\nVelocity: ${Math.round(b.velocity.x)}, ${Math.round(b.velocity.y)}\nGrounded: ${grounded?'yes':'no'}\nInput: ${this.inputManager.lastSource}\nEnemy: ${this.enemyState}\nController: ${this.inputManager.pad?'yes':'no'}`);
+    this.debug.setText(`DARKBOUND v0.3.1\nState: ${this.state}\nVelocity: ${Math.round(b.velocity.x)}, ${Math.round(b.velocity.y)}\nGrounded: ${grounded?'yes':'no'}\nInput: ${this.inputManager.lastSource}\nEnemy: ${this.enemyState}\nController: ${this.inputManager.pad?'yes':'no'}`);
     this.updateHud();
   }
 }
