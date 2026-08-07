@@ -16,13 +16,18 @@ const SEQUENCES = Object.freeze({
 
 export class GameSceneV05 extends GameScene {
   preload(){
+    // Each animation is its own independent PNG spritesheet. The old combined
+    // protagonist atlas is never loaded by the game.
     for(const name of Object.keys(SEQUENCES)){
-      this.load.image(`v05-${name}`,`./assets/v05/animations/${name}.png?v=055`);
+      this.load.spritesheet(
+        `v05-${name}`,
+        `./assets/v05/animations/${name}.png?v=056`,
+        { frameWidth:FRAME_SIZE, frameHeight:FRAME_SIZE }
+      );
     }
   }
 
   create(){
-    this.registerProtagonistFrames();
     super.create();
     this.hitAnimStartsAt=-Infinity;
     this.hitAnimEndsAt=-Infinity;
@@ -34,19 +39,6 @@ export class GameSceneV05 extends GameScene {
     this.setProtagonistFrame('idle',0);
   }
 
-  registerProtagonistFrames(){
-    for(const [name,sequence] of Object.entries(SEQUENCES)){
-      const texture=this.textures.get(`v05-${name}`);
-      if(!texture || texture.key==='__MISSING')continue;
-      for(let frame=0;frame<sequence.frames;frame++){
-        const frameName=`frame-${frame}`;
-        if(!texture.has(frameName)){
-          texture.add(frameName,0,frame*FRAME_SIZE,0,FRAME_SIZE,FRAME_SIZE);
-        }
-      }
-    }
-  }
-
   setProtagonistFrame(name,frameNumber){
     const art=this.player?.art;
     const sequence=SEQUENCES[name];
@@ -54,8 +46,8 @@ export class GameSceneV05 extends GameScene {
     const frame=Math.max(0,Math.min(sequence.frames-1,Math.floor(frameNumber)));
     const key=`${name}:${frame}`;
     if(key===this.currentProtagonistKey)return;
-    art.setTexture(`v05-${name}`,`frame-${frame}`);
-    art.setDisplaySize(96,96);
+    art.setTexture(`v05-${name}`,frame);
+    art.setAlpha(1).setDisplaySize(96,96);
     this.currentProtagonistKey=key;
   }
 
@@ -74,7 +66,7 @@ export class GameSceneV05 extends GameScene {
     const p=this.add.container(x,y);
     const shadow=this.add.ellipse(0,25,48,11,0x000000,.44);
     const aura=this.add.ellipse(0,4,42,74,0x69ff52,.025).setStrokeStyle(1,0x76ff42,.10);
-    const art=this.add.image(0,-27,'v05-idle','frame-0').setOrigin(.5,.5).setDisplaySize(96,96);
+    const art=this.add.sprite(0,-27,'v05-idle',0).setOrigin(.5,.5).setDisplaySize(96,96).setAlpha(1);
     const weaponProxy=this.add.rectangle(16,0,54,8,0xffffff,0).setOrigin(.08,.5);
     p.add([shadow,aura,art,weaponProxy]);
     p.art=art;
@@ -161,11 +153,11 @@ export class GameSceneV05 extends GameScene {
     super.update(time,delta);
     if(!this.player?.art)return;
     const body=this.player.body;
-    this.player.art.setPosition(0,-27).setDisplaySize(96,96);
+    this.player.art.setPosition(0,-27).setDisplaySize(96,96).setAlpha(1);
     this.player.aura.setAlpha(.02+Math.min(.04,Math.abs(body?.velocity?.x||0)/8000));
     this.updateProtagonistFrame(time);
     if(this.debug?.text){
-      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.5.5 PRODUCTION'));
+      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.5.6 PRODUCTION'));
     }
   }
 }
