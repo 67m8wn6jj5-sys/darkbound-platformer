@@ -3,11 +3,14 @@ import { TUNING } from './config.js';
 
 const ASSET_ROOT = './assets/v05/production58';
 const ART_SCALE = 0.38;
+const BREATH_PERIOD_MS = 3200;
+const BREATH_Y_PX = 0.8;
+const BREATH_SCALE_Y = 0.006;
 
-// v0.5.8 R2 production art: every frame is an independent transparent PNG
+// v0.5.8 R3 production art: every frame is an independent transparent PNG
 // on the same 512x512 canvas with the same bottom-center registration.
 const SEQUENCES = Object.freeze({
-  idle:    { folder:'idle',            frames:5, frameRate:2  },
+  idle:    { folder:'idle',            frames:5, frameRate:1  },
   run:     { folder:'run',             frames:7, frameRate:14 },
   jump:    { folder:'jump',            frames:4, frameRate:10 },
   attack1: { folder:'attack_combo',    frames:5, frameRate:30 },
@@ -18,10 +21,8 @@ const SEQUENCES = Object.freeze({
   death:   { folder:'death',           frames:5, frameRate:8  }
 });
 
-const IDLE_RUNTIME_FRAMES = Object.freeze([0,1]);
-
 function textureKey(name,index){
-  return `v058r2-${name}-${String(index+1).padStart(2,'0')}`;
+  return `v058r3-${name}-${String(index+1).padStart(2,'0')}`;
 }
 
 export class GameSceneV05 extends GameScene {
@@ -29,7 +30,7 @@ export class GameSceneV05 extends GameScene {
     for(const [name,sequence] of Object.entries(SEQUENCES)){
       for(let i=0;i<sequence.frames;i++){
         const file=`${sequence.folder}_${String(i+1).padStart(2,'0')}.png`;
-        this.load.image(textureKey(name,i),`${ASSET_ROOT}/${sequence.folder}/${file}?v=058r2`);
+        this.load.image(textureKey(name,i),`${ASSET_ROOT}/${sequence.folder}/${file}?v=058r3`);
       }
     }
   }
@@ -42,8 +43,6 @@ export class GameSceneV05 extends GameScene {
     this.wasGrounded=true;
     this.landingAnimEndsAt=0;
     this.currentProtagonistKey='';
-
-    // Approved production frames contain their own sword effects.
     this.attackFlash.setAlpha(0);
     this.attackArc.setVisible(false);
     this.setProtagonistFrame('idle',0);
@@ -64,11 +63,6 @@ export class GameSceneV05 extends GameScene {
   loopFrame(name,time){
     const s=SEQUENCES[name];
     return Math.floor((time/1000)*s.frameRate)%s.frames;
-  }
-
-  idleFrame(time){
-    const i=Math.floor((time/1000)*SEQUENCES.idle.frameRate)%IDLE_RUNTIME_FRAMES.length;
-    return IDLE_RUNTIME_FRAMES[i];
   }
 
   progressFrame(name,progress){
@@ -127,7 +121,7 @@ export class GameSceneV05 extends GameScene {
 
   updateProtagonistFrame(time){
     const body=this.player?.body;
-    if(!body)return;
+    if(!body)return 'idle';
     const grounded=!!body.blocked.down;
     let name='idle';
     let frame=0;
@@ -163,11 +157,12 @@ export class GameSceneV05 extends GameScene {
       frame=this.loopFrame(name,time);
     } else {
       name='idle';
-      frame=this.idleFrame(time);
+      frame=0;
     }
 
     this.setProtagonistFrame(name,frame);
     this.wasGrounded=grounded;
+    return name;
   }
 
   update(time,delta){
@@ -175,14 +170,24 @@ export class GameSceneV05 extends GameScene {
     if(!this.player?.art)return;
 
     const body=this.player.body;
-    // Every R2 frame shares one 512x512 transparent canvas and identical pivot.
-    // This prevents sword tips/effects from wrapping into neighboring frames.
-    this.player.art.setPosition(0,27).setOrigin(.5,1).setScale(ART_SCALE).setAlpha(1);
+    const activeName=this.updateProtagonistFrame(time);
+
+    if(activeName==='idle' && !this.dead){
+      const phase=(time%BREATH_PERIOD_MS)/BREATH_PERIOD_MS*Math.PI*2;
+      const breath=(1-Math.cos(phase))*0.5;
+      this.player.art
+        .setPosition(0,27-BREATH_Y_PX*breath)
+        .setOrigin(.5,1)
+        .setScale(ART_SCALE,ART_SCALE*(1+BREATH_SCALE_Y*breath))
+        .setAlpha(1);
+    } else {
+      this.player.art.setPosition(0,27).setOrigin(.5,1).setScale(ART_SCALE).setAlpha(1);
+    }
+
     this.player.aura.setAlpha(.015+Math.min(.025,Math.abs(body?.velocity?.x||0)/10000));
-    this.updateProtagonistFrame(time);
 
     if(this.debug?.text){
-      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.5.8 R2 PRODUCTION'));
+      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.5.8 R3 PRODUCTION'));
     }
   }
 }
