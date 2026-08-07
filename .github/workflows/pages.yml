@@ -21,6 +21,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Keep the v0.5.7/v0.5.8-temp pipeline available during the transition so
+      # this workflow-only commit cannot break the currently deployed renderer.
       - name: Restore v0.5.7 protagonist source PNGs
         run: |
           set -euo pipefail
@@ -30,7 +32,7 @@ jobs:
           tar -xzf /tmp/v05-animations.tgz -C assets/v05/animations
           test "$(find assets/v05/animations -maxdepth 1 -name '*.png' | wc -l)" -eq 9
 
-      - name: Build v0.5.8 padded opaque protagonist PNGs
+      - name: Build legacy padded protagonist PNGs
         run: |
           python -m pip install --quiet pillow
           python - <<'PY'
@@ -43,13 +45,6 @@ jobs:
           FW = 48
           OW = 64
 
-          counts = {
-              'idle': 7, 'run': 7, 'jump': 6,
-              'attack1': 7, 'attack2': 7, 'attack3': 8,
-              'roll': 8, 'hit': 8, 'death': 8,
-          }
-          # Broken jump/attack source rows are replaced by intact poses from
-          # the same approved green-haired art pass while keeping game timing.
           sources = {
               'idle': ('idle', list(range(7))),
               'run': ('run', list(range(7))),
@@ -68,17 +63,10 @@ jobs:
               for y in range(im.height):
                   for x in range(im.width):
                       r,g,b,a = px[x,y]
-                      if a < 28:
+                      if a < 28 or (b >= r + 3 and b >= g + 3 and (r+g+b) < 300):
                           px[x,y] = (0,0,0,0)
-                          continue
-                      # Remove the blue/purple presentation/background residue
-                      # that contaminated the previous temporary exports.
-                      if b >= r + 3 and b >= g + 3 and (r+g+b) < 300:
-                          px[x,y] = (0,0,0,0)
-                          continue
-                      # Any surviving character pixel is intentionally opaque.
-                      px[x,y] = (r,g,b,255)
-
+                      else:
+                          px[x,y] = (r,g,b,255)
               bbox = im.getbbox()
               if not bbox:
                   return Image.new('RGBA',(OW,OW),(0,0,0,0))
@@ -88,33 +76,41 @@ jobs:
               rgb = ImageEnhance.Color(rgb).enhance(1.32)
               rgb = ImageEnhance.Contrast(rgb).enhance(1.10)
               sub = Image.merge('RGBA', (*rgb.split(), sub.getchannel('A')))
-
-              maxw, maxh = 56, 56
-              scale = min(maxw/sub.width, maxh/sub.height, 1.35)
-              nw = max(1, round(sub.width*scale))
-              nh = max(1, round(sub.height*scale))
-              sub = sub.resize((nw,nh), Image.Resampling.LANCZOS)
-              # Re-harden resized alpha to avoid translucent-looking sprites.
-              a = sub.getchannel('A').point(lambda v: 255 if v >= 72 else 0)
-              sub.putalpha(a)
-              canvas = Image.new('RGBA',(OW,OW),(0,0,0,0))
-              canvas.alpha_composite(sub, ((OW-nw)//2, 60-nh))
+              scale = min(56/sub.width, 56/sub.height, 1.35)
+              nw=max(1,round(sub.width*scale)); nh=max(1,round(sub.height*scale))
+              sub=sub.resize((nw,nh),Image.Resampling.LANCZOS)
+              sub.putalpha(sub.getchannel('A').point(lambda v:255 if v>=72 else 0))
+              canvas=Image.new('RGBA',(OW,OW),(0,0,0,0))
+              canvas.alpha_composite(sub,((OW-nw)//2,60-nh))
               return canvas
 
-          loaded = {}
+          loaded={}
           for source_name,_ in sources.values():
               if source_name not in loaded:
-                  loaded[source_name] = Image.open(SRC / f'{source_name}.png').convert('RGBA')
-
+                  loaded[source_name]=Image.open(SRC/f'{source_name}.png').convert('RGBA')
           for out_name,(source_name,indices) in sources.items():
-              src = loaded[source_name]
-              strip = Image.new('RGBA',(OW*len(indices),OW),(0,0,0,0))
+              src=loaded[source_name]
+              strip=Image.new('RGBA',(OW*len(indices),OW),(0,0,0,0))
               for col,idx in enumerate(indices):
-                  frame = src.crop((idx*FW,0,(idx+1)*FW,FW))
-                  strip.alpha_composite(clean(frame),(col*OW,0))
-              strip.save(OUT / f'{out_name}.png','PNG',optimize=True)
+                  strip.alpha_composite(clean(src.crop((idx*FW,0,(idx+1)*FW,FW))),(col*OW,0))
+              strip.save(OUT/f'{out_name}.png','PNG',optimize=True)
+          PY
 
-          assert len(list(OUT.glob('*.png'))) == 9
+      - name: Unpack v0.5.8 production protagonist frames
+        run: |
+          set -euo pipefail
+          rm -rf assets/v05/production58
+          mkdir -p assets/v05/production58
+          unzip -q Darkbound_v0.5.8_Production_Sprites.zip -d assets/v05/production58
+          test -f assets/v05/production58/manifest.json
+          test "$(find assets/v05/production58 -type f -name '*.png' | wc -l)" -eq 53
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('assets/v05/production58/manifest.json')
+          data=json.loads(p.read_text())
+          assert data['version']=='v0.5.8-production-cleanup'
+          assert sum(v['frames'] for v in data['sequences'].values())==53
           PY
 
       - name: Configure Pages
