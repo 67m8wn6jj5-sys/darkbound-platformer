@@ -1,6 +1,9 @@
 import { GameScene } from './GameScene.js';
 import { TUNING } from './config.js';
 
+const FRAME_SIZE = 128;
+const FRAMES_PER_ROW = 8;
+
 const SEQUENCES = Object.freeze({
   idle:    { row:0, frames:7, frameRate:6,  repeat:-1 },
   run:     { row:1, frames:7, frameRate:14, repeat:-1 },
@@ -16,8 +19,8 @@ const SEQUENCES = Object.freeze({
 export class GameSceneV05 extends GameScene {
   preload(){
     this.load.spritesheet('v05-protagonist','./assets/v05/protagonist-atlas.png',{
-      frameWidth:96,
-      frameHeight:96
+      frameWidth:FRAME_SIZE,
+      frameHeight:FRAME_SIZE
     });
   }
 
@@ -35,7 +38,7 @@ export class GameSceneV05 extends GameScene {
     Object.entries(SEQUENCES).forEach(([name,sequence])=>{
       const key=`v05-anim-${name}`;
       if(this.anims.exists(key))return;
-      const start=sequence.row*8;
+      const start=sequence.row*FRAMES_PER_ROW;
       this.anims.create({
         key,
         frames:this.anims.generateFrameNumbers('v05-protagonist',{
@@ -53,7 +56,9 @@ export class GameSceneV05 extends GameScene {
     const shadow=this.add.ellipse(0,25,48,11,0x000000,.44);
     const aura=this.add.ellipse(0,4,42,74,0x69ff52,.025)
       .setStrokeStyle(1,0x76ff42,.10);
-    const art=this.add.sprite(0,-27,'v05-protagonist',0).setOrigin(.5,.5);
+    const art=this.add.sprite(0,-27,'v05-protagonist',0)
+      .setOrigin(.5,.5)
+      .setDisplaySize(96,96);
     const weaponProxy=this.add.rectangle(16,0,54,8,0xffffff,0).setOrigin(.08,.5);
 
     p.add([shadow,aura,art,weaponProxy]);
@@ -109,7 +114,7 @@ export class GameSceneV05 extends GameScene {
     const art=this.player.art;
     const body=this.player.body;
     const grounded=!!body?.blocked?.down;
-    art.setPosition(0,-27);
+    art.setPosition(0,-27).setDisplaySize(96,96);
     this.player.aura.setAlpha(.02+Math.min(.04,Math.abs(body?.velocity?.x||0)/8000));
 
     if(this.dead){
@@ -123,14 +128,14 @@ export class GameSceneV05 extends GameScene {
     } else if(!grounded){
       const jumpFrame=body.velocity.y<-260?1:(body.velocity.y<80?2:(body.velocity.y<420?3:4));
       art.anims.stop();
-      art.setFrame((SEQUENCES.jump.row*8)+jumpFrame);
+      art.setFrame((SEQUENCES.jump.row*FRAMES_PER_ROW)+jumpFrame);
     } else if(!this.wasGrounded){
       this.landingAnimEndsAt=time+95;
       art.anims.stop();
-      art.setFrame((SEQUENCES.jump.row*8)+5);
+      art.setFrame((SEQUENCES.jump.row*FRAMES_PER_ROW)+5);
     } else if(time<this.landingAnimEndsAt){
       art.anims.stop();
-      art.setFrame((SEQUENCES.jump.row*8)+5);
+      art.setFrame((SEQUENCES.jump.row*FRAMES_PER_ROW)+5);
     } else if(this.state==='running'){
       this.playProtagonist('run');
     } else {
@@ -140,7 +145,7 @@ export class GameSceneV05 extends GameScene {
     this.wasGrounded=grounded;
 
     if(this.debug?.text){
-      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.5.0 PRODUCTION'));
+      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.5.1 PRODUCTION'));
     }
   }
 }
