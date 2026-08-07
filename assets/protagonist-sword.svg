@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 24">
+  <defs>
+    <linearGradient id="blade" x1="0" x2="1"><stop offset="0" stop-color="#17211d"/><stop offset="0.35" stop-color="#345d49"/><stop offset="0.72" stop-color="#77ff9f"/><stop offset="1" stop-color="#d9ffe4"/></linearGradient>
+    <linearGradient id="edge" x1="0" x2="1"><stop offset="0" stop-color="#4f7d58"/><stop offset="0.7" stop-color="#7fff58"/><stop offset="1" stop-color="#eaffc8"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="1.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <path d="M8 8 L17 8 L19 4 L23 4 L25 8 L31 8 L29 12 L25 12 L23 16 L19 16 L17 12 L8 12Z" fill="#9a7438" stroke="#e2bf72" stroke-width="1"/>
+  <rect x="3" y="9" width="8" height="2" rx="1" fill="#46331d" stroke="#a47a39" stroke-width="1"/>
+  <path d="M29 8 L78 2 L92 10 L78 18 L29 12Z" fill="url(#blade)" stroke="#18241e" stroke-width="1.2"/>
+  <path d="M31 9.7 L78 5 L87 10 L78 15 L31 10.3Z" fill="none" stroke="url(#edge)" stroke-width="1.7" filter="url(#glow)"/>
+  <path d="M45 8 L50 10 L45 12 M60 6 L65 10 L60 14 M75 5 L80 10 L75 15" fill="none" stroke="#7fff58" stroke-width="1" opacity=".8"/>
+</svg>
