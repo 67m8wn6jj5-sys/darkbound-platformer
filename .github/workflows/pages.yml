@@ -25,10 +25,14 @@ jobs:
         run: |
           python -m pip install --quiet pillow
           python - <<'PY'
-          from PIL import Image
+          from PIL import Image, ImageFile
           from pathlib import Path
 
-          source = Image.open('assets/v05/protagonist-atlas.png').convert('RGBA')
+          ImageFile.LOAD_TRUNCATED_IMAGES = True
+          source = Image.open('assets/v05/protagonist-atlas.png')
+          source.load()
+          source = source.convert('RGBA')
+
           out = Path('assets/v05/animations')
           out.mkdir(parents=True, exist_ok=True)
           sequences = {
@@ -47,8 +51,8 @@ jobs:
               strip = Image.new('RGBA', (count * size, size), (0, 0, 0, 0))
               for col in range(count):
                   frame = source.crop((col*size, row*size, (col+1)*size, (row+1)*size))
-                  strip.paste(frame, (col*size, 0), frame)
-              strip.save(out / f'{name}.png')
+                  strip.alpha_composite(frame, (col*size, 0))
+              strip.save(out / f'{name}.png', 'PNG')
           PY
 
       - name: Configure Pages
