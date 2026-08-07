@@ -21,22 +21,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Unpack v0.5.8 R2 production protagonist frames
+      - name: Unpack v0.5.8 R3 production protagonist frames
         run: |
           set -euo pipefail
           rm -rf assets/v05/production58
           mkdir -p assets/v05/production58
-          unzip -q -o Darkbound_v0.5.8_Production_Sprites_R2.zip -d assets/v05/production58
+          unzip -q -o Darkbound_v0.5.8_Production_Sprites_R3.zip -d assets/v05/production58
           test -f assets/v05/production58/manifest.json
           test "$(find assets/v05/production58 -type f -name '*.png' | wc -l)" -eq 54
           python - <<'PY'
           import json
           from pathlib import Path
           data=json.loads(Path('assets/v05/production58/manifest.json').read_text())
-          assert data['version']=='v0.5.8-cleanup-r2'
+          assert data['version']=='v0.5.8-cleanup-r3'
           assert data['canvas']==[512,512]
           assert sum(v['frames'] for v in data['sequences'].values())==54
-          assert data['sequences']['idle']['runtime_frames']==[1,2]
+          assert data['sequences']['idle']['runtime_frames']==[1]
           PY
 
       - name: Configure Pages
