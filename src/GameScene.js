@@ -34,17 +34,25 @@ export class GameScene extends Phaser.Scene {
     this.state='idle';
     this.lastRollAt=-Infinity;
     this.rollEndsAt=0;
-    this.lastAttackAt=-Infinity;
+
+    this.comboStep=0;
+    this.comboExpiresAt=-Infinity;
     this.attackStartsAt=-Infinity;
     this.attackEndsAt=-Infinity;
     this.attackHitEnemy=false;
+    this.attackQueued=false;
+
     this.playerHp=TUNING.playerMaxHp;
     this.playerInvulnEndsAt=0;
     this.enemyHp=TUNING.enemyMaxHp;
     this.enemyAlive=true;
+    this.enemyState='chasing';
+    this.enemyStateEndsAt=0;
+    this.enemyNextAttackAt=0;
     this.dead=false;
 
-    this.attackFlash=this.add.rectangle(0,0,62,30,0xdce7ff,.35).setStrokeStyle(2,0xffffff,.9).setVisible(false).setDepth(50);
+    this.attackFlash=this.add.rectangle(0,0,64,30,0xdce7ff,.28).setStrokeStyle(2,0xffffff,.95).setVisible(false).setDepth(50);
+    this.enemyTell=this.add.circle(0,0,30,0xff304f,.12).setStrokeStyle(3,0xff5b72,.95).setVisible(false).setDepth(45);
 
     this.cameras.main.setBounds(0,0,this.worldWidth,this.worldHeight).startFollow(this.player,true,.11,.16,80,70).setDeadzone(150,90);
     this.physics.world.setBounds(0,0,this.worldWidth,this.worldHeight+300);
@@ -90,7 +98,7 @@ export class GameScene extends Phaser.Scene {
     const eye=this.add.circle(-8,-7,3,0xffe9ee);
     e.add([shadow,body,eye]);
     this.physics.add.existing(e);
-    e.body.setSize(30,46).setOffset(-15,-23).setCollideWorldBounds(true).setMaxVelocity(150,TUNING.maxFallSpeed);
+    e.body.setSize(30,46).setOffset(-15,-23).setCollideWorldBounds(true).setMaxVelocity(180,TUNING.maxFallSpeed);
     return e;
   }
 
@@ -122,49 +130,96 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  startAttack(time){
-    if(time-this.lastAttackAt<TUNING.attackCooldownMs)return;
-    this.lastAttackAt=time;
+  startAttack(time, step=null){
+    const nextStep=step ?? (time<=this.comboExpiresAt ? Math.min(this.comboStep+1,2) : 0);
+    this.comboStep=nextStep;
     this.attackStartsAt=time;
-    this.attackEndsAt=time+TUNING.attackDurationMs;
+    this.attackEndsAt=time+TUNING.attackDurationsMs[nextStep];
+    this.comboExpiresAt=this.attackEndsAt+TUNING.comboResetMs;
     this.attackHitEnemy=false;
-    this.state='attacking';
+    this.attackQueued=false;
+    this.state=`attack-${nextStep+1}`;
+  }
+
+  queueAttack(time){
+    if(time>=this.attackStartsAt+90 && time<=this.attackEndsAt+80)this.attackQueued=true;
+  }
+
+  finishOrChainAttack(time){
+    if(time<this.attackEndsAt)return true;
+    if(this.attackQueued){
+      this.startAttack(time,(this.comboStep+1)%3);
+      return true;
+    }
+    this.attackFlash.setVisible(false);
+    return false;
   }
 
   updateAttack(time){
     const elapsed=time-this.attackStartsAt;
-    const active=elapsed>=TUNING.attackActiveStartMs && elapsed<=TUNING.attackActiveEndMs;
-    this.attackFlash.setVisible(active).setPosition(this.player.x+this.facing*48,this.player.y-2);
+    const step=this.comboStep;
+    const active=elapsed>=TUNING.attackActiveStartMs[step] && elapsed<=TUNING.attackActiveEndMs[step];
+    const width=[64,72,92][step];
+    const height=[28,34,44][step];
+    this.attackFlash.setSize(width,height).setFillStyle(step===2?0xffe7a8:0xdce7ff,step===2?.42:.28).setVisible(active).setPosition(this.player.x+this.facing*(46+step*5),this.player.y-2);
     if(!active || this.attackHitEnemy || !this.enemyAlive)return;
 
     const dx=(this.enemy.x-this.player.x)*this.facing;
     const dy=Math.abs(this.enemy.y-this.player.y);
-    if(dx>0 && dx<=TUNING.attackRange && dy<58){
+    if(dx>0 && dx<=TUNING.attackRanges[step] && dy<62){
       this.attackHitEnemy=true;
-      this.damageEnemy();
+      this.damageEnemy(step);
     }
   }
 
-  damageEnemy(){
+  applyHitStop(ms){
+    if(this.physics.world.isPaused)return;
+    this.physics.pause();
+    this.time.delayedCall(ms,()=>{
+      if(!this.dead && !this.pausePanel.bg.visible)this.physics.resume();
+    });
+  }
+
+  damageEnemy(step){
     if(!this.enemyAlive)return;
     this.enemyHp=Math.max(0,this.enemyHp-1);
-    this.enemy.body.setVelocityX(this.facing*230);
-    this.tweens.add({targets:this.enemy,alpha:.25,yoyo:true,repeat:1,duration:70});
-    if(this.enemyHp<=0){
-      this.enemyAlive=false;
-      this.enemy.body.enable=false;
-      this.enemy.setVisible(false);
-    }
+    this.enemyState='stagger';
+    this.enemyStateEndsAt=this.time.now+140+(step*40);
+    this.enemy.body.setVelocity(this.facing*TUNING.attackKnockback[step],step===2?-120:-60);
+    this.cameras.main.shake(step===2?90:55,step===2?.006:.0035);
+    this.tweens.add({targets:this.enemy,alpha:.18,yoyo:true,repeat:1,duration:55});
+    this.applyHitStop(TUNING.hitStopMs[step]);
+
+    if(this.enemyHp<=0)this.killEnemy();
     this.updateHud();
+  }
+
+  killEnemy(){
+    this.enemyAlive=false;
+    this.enemyState='dead';
+    this.enemyTell.setVisible(false);
+    this.enemy.body.enable=false;
+    this.spawnEnemyDeathEffect();
+    this.tweens.add({targets:this.enemy,alpha:0,scaleX:1.35,scaleY:.55,duration:170,onComplete:()=>this.enemy.setVisible(false)});
+  }
+
+  spawnEnemyDeathEffect(){
+    for(let i=0;i<8;i++){
+      const shard=this.add.rectangle(this.enemy.x,this.enemy.y,5+(i%3)*2,5+(i%2)*3,0xff7894,.9).setDepth(60);
+      const angle=(-Math.PI*.9)+(i/7)*Math.PI*1.8;
+      const distance=35+(i%4)*12;
+      this.tweens.add({targets:shard,x:shard.x+Math.cos(angle)*distance,y:shard.y+Math.sin(angle)*distance,alpha:0,angle:90+(i*35),duration:260+i*18,onComplete:()=>shard.destroy()});
+    }
   }
 
   damagePlayer(time){
     if(this.dead || time<this.playerInvulnEndsAt || time<this.rollEndsAt)return;
-    this.playerHp=Math.max(0,this.playerHp-TUNING.enemyContactDamage);
+    this.playerHp=Math.max(0,this.playerHp-TUNING.enemyAttackDamage);
     this.playerInvulnEndsAt=time+TUNING.playerInvulnMs;
     const away=this.player.x<this.enemy.x?-1:1;
-    this.player.body.setVelocity(away*260,-260);
-    this.tweens.add({targets:this.player,alpha:.22,yoyo:true,repeat:4,duration:85});
+    this.player.body.setVelocity(away*300,-285);
+    this.cameras.main.shake(90,.006);
+    this.tweens.add({targets:this.player,alpha:.18,yoyo:true,repeat:4,duration:75});
     this.updateHud();
     if(this.playerHp<=0)this.killPlayer();
   }
@@ -173,10 +228,35 @@ export class GameScene extends Phaser.Scene {
     this.dead=true;
     this.state='dead';
     this.attackFlash.setVisible(false);
+    this.enemyTell.setVisible(false);
     this.player.body.setVelocity(0,0);
     this.player.body.enable=false;
     this.deathPanel.bg.setSize(this.scale.width,this.scale.height).setVisible(true);
     this.deathPanel.title.setPosition(this.scale.width/2,this.scale.height/2).setVisible(true);
+  }
+
+  beginEnemyWindup(time,dx){
+    this.enemyState='windup';
+    this.enemyStateEndsAt=time+TUNING.enemyWindupMs;
+    this.enemy.body.setVelocityX(0);
+    this.enemy.scaleX=dx<0?1:-1;
+    this.enemyTell.setPosition(this.enemy.x,this.enemy.y-2).setVisible(true).setScale(.7).setAlpha(.4);
+    this.tweens.add({targets:this.enemyTell,scale:1.35,alpha:.95,duration:TUNING.enemyWindupMs,ease:'Quad.easeIn'});
+  }
+
+  executeEnemyAttack(time){
+    this.enemyState='recovery';
+    this.enemyStateEndsAt=time+TUNING.enemyAttackRecoveryMs;
+    this.enemyNextAttackAt=time+TUNING.enemyAttackCooldownMs;
+    this.enemyTell.setVisible(false);
+    const dx=this.player.x-this.enemy.x;
+    const direction=Math.sign(dx)||1;
+    this.enemy.body.setVelocityX(direction*185);
+    this.tweens.add({targets:this.enemy,scaleX:this.enemy.scaleX*1.15,scaleY:.88,yoyo:true,duration:95});
+
+    if(Math.abs(dx)<=TUNING.enemyAttackRange+18 && Math.abs(this.player.y-this.enemy.y)<56){
+      this.damagePlayer(time);
+    }
   }
 
   updateEnemy(time){
@@ -184,21 +264,50 @@ export class GameScene extends Phaser.Scene {
     const b=this.enemy.body;
     const dx=this.player.x-this.enemy.x;
     const distance=Math.abs(dx);
+
+    if(this.enemyState==='stagger'){
+      if(time>=this.enemyStateEndsAt)this.enemyState='chasing';
+      return;
+    }
+
+    if(this.enemyState==='windup'){
+      b.setVelocityX(0);
+      this.enemyTell.setPosition(this.enemy.x,this.enemy.y-2);
+      if(time>=this.enemyStateEndsAt)this.executeEnemyAttack(time);
+      return;
+    }
+
+    if(this.enemyState==='recovery'){
+      b.velocity.x=moveTowards(b.velocity.x,0,10);
+      if(time>=this.enemyStateEndsAt)this.enemyState='chasing';
+      return;
+    }
+
+    if(distance<=TUNING.enemyAttackRange && time>=this.enemyNextAttackAt){
+      this.beginEnemyWindup(time,dx);
+      return;
+    }
+
     if(distance<TUNING.enemyAggroRange){
       b.setVelocityX(Math.sign(dx)*TUNING.enemySpeed);
       this.enemy.scaleX=dx<0?1:-1;
     } else {
       b.velocity.x=moveTowards(b.velocity.x,0,8);
     }
+  }
 
-    if(Math.abs(this.player.x-this.enemy.x)<38 && Math.abs(this.player.y-this.enemy.y)<48){
-      this.damagePlayer(time);
-    }
+  startRoll(time,b){
+    this.lastRollAt=time;
+    this.rollEndsAt=time+TUNING.rollDurationMs;
+    this.state='rolling';
+    b.setVelocityX(this.facing*TUNING.rollSpeed);
+    this.player.setAlpha(.55);
+    this.tweens.add({targets:this.player,alpha:.25,yoyo:true,repeat:3,duration:55,onComplete:()=>this.player.setAlpha(1)});
   }
 
   updateHud(){
     const enemyText=this.enemyAlive?`${this.enemyHp}/${TUNING.enemyMaxHp}`:'DEFEATED';
-    this.hud?.setText(`HP ${this.playerHp}/${TUNING.playerMaxHp}   •   ENEMY ${enemyText}`);
+    this.hud?.setText(`HP ${this.playerHp}/${TUNING.playerMaxHp}   •   ENEMY ${enemyText}   •   COMBO ${this.comboStep+1}`);
   }
 
   update(time,delta){
@@ -220,30 +329,30 @@ export class GameScene extends Phaser.Scene {
 
     const canRoll=time-this.lastRollAt>=TUNING.rollCooldownMs;
     if(cmd.dodgePressed&&grounded&&canRoll){
-      this.lastRollAt=time;
-      this.rollEndsAt=time+TUNING.rollDurationMs;
-      this.state='rolling';
-      b.setVelocityX(this.facing*TUNING.rollSpeed);
-      this.tweens.add({targets:this.player,alpha:.42,yoyo:true,repeat:2,duration:65});
+      this.startRoll(time,b);
     }
 
     const rolling=time<this.rollEndsAt;
     let attacking=time<this.attackEndsAt;
-    if(cmd.attackPressed&&!rolling&&!attacking){
-      this.startAttack(time);
-      attacking=time<this.attackEndsAt;
+
+    if(cmd.attackPressed&&!rolling){
+      if(attacking)this.queueAttack(time);
+      else this.startAttack(time);
+      attacking=true;
     }
 
     if(attacking){
       this.updateAttack(time);
+      attacking=this.finishOrChainAttack(time);
     } else {
       this.attackFlash.setVisible(false);
+      if(time>this.comboExpiresAt)this.comboStep=0;
     }
 
     if(!rolling){
       const target=cmd.move*TUNING.runSpeed;
       const accel=grounded?TUNING.groundAcceleration:TUNING.airAcceleration;
-      const movementScale=attacking ? 0.55 : 1;
+      const movementScale=attacking ? 0.48 : 1;
       b.velocity.x=moveTowards(b.velocity.x,target*movementScale,accel*delta/1000);
       if(cmd.move===0)b.velocity.x=moveTowards(b.velocity.x,0,(grounded?TUNING.groundDrag:TUNING.airDrag)*delta/1000);
 
@@ -259,10 +368,11 @@ export class GameScene extends Phaser.Scene {
       else if(b.velocity.y>0)b.velocity.y+=TUNING.gravityY*(TUNING.fallGravityMultiplier-1)*delta/1000;
       b.velocity.y=Math.min(b.velocity.y,TUNING.maxFallSpeed);
 
-      if(attacking)this.state='attacking';
+      if(attacking)this.state=`attack-${this.comboStep+1}`;
       else this.state=grounded?(Math.abs(b.velocity.x)>15?'running':'idle'):(b.velocity.y<0?'rising':'falling');
     }
 
+    if(!rolling && time>=this.rollEndsAt && this.player.alpha<1 && time>=this.playerInvulnEndsAt)this.player.setAlpha(1);
     this.player.scaleX=this.facing;
     this.updateEnemy(time);
 
@@ -274,6 +384,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.cameras.main.followOffset.x=Phaser.Math.Linear(this.cameras.main.followOffset.x,-this.facing*95,.05);
-    this.debug.setText(`DARKBOUND v0.2.0\nState: ${this.state}\nVelocity: ${Math.round(b.velocity.x)}, ${Math.round(b.velocity.y)}\nGrounded: ${grounded?'yes':'no'}\nInput: ${this.inputManager.lastSource}\nController: ${this.inputManager.pad?'yes':'no'}`);
+    this.debug.setText(`DARKBOUND v0.3.0\nState: ${this.state}\nVelocity: ${Math.round(b.velocity.x)}, ${Math.round(b.velocity.y)}\nGrounded: ${grounded?'yes':'no'}\nInput: ${this.inputManager.lastSource}\nEnemy: ${this.enemyState}\nController: ${this.inputManager.pad?'yes':'no'}`);
+    this.updateHud();
   }
 }
