@@ -18,13 +18,12 @@ const SEQUENCES = Object.freeze({
 
 export class GameSceneV05 extends GameScene {
   preload(){
-    // Load as a normal image. Safari/WebGL was unreliable when the indexed PNG
-    // was handed directly to Phaser's spritesheet/animation pipeline.
-    this.load.image('v05-protagonist-source','./assets/v05/protagonist-atlas.png?v=052');
+    // Load the atlas as one ordinary image. We intentionally avoid Phaser's
+    // spritesheet animation path and runtime CanvasTexture refreshes on iOS Safari.
+    this.load.image('v05-protagonist-source','./assets/v05/protagonist-atlas.png?v=053');
   }
 
   create(){
-    this.prepareProtagonistRuntimeTexture();
     super.create();
 
     this.hitAnimStartsAt=-Infinity;
@@ -33,36 +32,20 @@ export class GameSceneV05 extends GameScene {
     this.wasGrounded=true;
     this.landingAnimEndsAt=0;
     this.attackFlash.setAlpha(.08);
-    this.setProtagonistFrame(0);
-  }
-
-  prepareProtagonistRuntimeTexture(){
-    this.protagonistSource=this.textures.get('v05-protagonist-source').getSourceImage();
-    const existing=this.textures.get('v05-protagonist-frame');
-    if(existing?.key && existing.key!=='__MISSING')this.textures.remove('v05-protagonist-frame');
-
-    this.protagonistCanvas=this.textures.createCanvas('v05-protagonist-frame',FRAME_SIZE,FRAME_SIZE);
-    this.protagonistContext=this.protagonistCanvas.getContext();
     this.currentProtagonistFrame=-1;
     this.setProtagonistFrame(0);
   }
 
   setProtagonistFrame(frameNumber){
-    if(!this.protagonistCanvas || !this.protagonistSource)return;
+    const art=this.player?.art;
+    if(!art)return;
     const maxFrame=(9*FRAMES_PER_ROW)-1;
     const frame=Math.max(0,Math.min(maxFrame,Math.floor(frameNumber)));
     if(frame===this.currentProtagonistFrame)return;
 
     const sx=(frame%FRAMES_PER_ROW)*FRAME_SIZE;
     const sy=Math.floor(frame/FRAMES_PER_ROW)*FRAME_SIZE;
-    const ctx=this.protagonistContext;
-    ctx.clearRect(0,0,FRAME_SIZE,FRAME_SIZE);
-    ctx.drawImage(
-      this.protagonistSource,
-      sx,sy,FRAME_SIZE,FRAME_SIZE,
-      0,0,FRAME_SIZE,FRAME_SIZE
-    );
-    this.protagonistCanvas.refresh();
+    art.setCrop(sx,sy,FRAME_SIZE,FRAME_SIZE);
     this.currentProtagonistFrame=frame;
   }
 
@@ -84,8 +67,9 @@ export class GameSceneV05 extends GameScene {
     const shadow=this.add.ellipse(0,25,48,11,0x000000,.44);
     const aura=this.add.ellipse(0,4,42,74,0x69ff52,.025)
       .setStrokeStyle(1,0x76ff42,.10);
-    const art=this.add.image(0,-27,'v05-protagonist-frame')
+    const art=this.add.image(0,-27,'v05-protagonist-source')
       .setOrigin(.5,.5)
+      .setCrop(0,0,FRAME_SIZE,FRAME_SIZE)
       .setDisplaySize(96,96);
     const weaponProxy=this.add.rectangle(16,0,54,8,0xffffff,0).setOrigin(.08,.5);
 
@@ -178,7 +162,7 @@ export class GameSceneV05 extends GameScene {
     this.updateProtagonistFrame(time);
 
     if(this.debug?.text){
-      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.5.2 PRODUCTION'));
+      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.5.3 PRODUCTION'));
     }
   }
 }
