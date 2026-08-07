@@ -6,9 +6,9 @@ const ART_SCALE = 0.38;
 const BREATH_PERIOD_MS = 3200;
 const BREATH_Y_PX = 0.8;
 const BREATH_SCALE_Y = 0.006;
+const ATTACK_LUNGE = [90,115,145];
+const ATTACK_RECOIL = [28,36,48];
 
-// v0.5.8 R3 production art: every frame is an independent transparent PNG
-// on the same 512x512 canvas with the same bottom-center registration.
 const SEQUENCES = Object.freeze({
   idle:    { folder:'idle',            frames:5, frameRate:1  },
   run:     { folder:'run',             frames:7, frameRate:14 },
@@ -85,6 +85,67 @@ export class GameSceneV05 extends GameScene {
     this.physics.add.existing(p);
     p.body.setSize(28,54).setOffset(-14,-30).setCollideWorldBounds(true).setMaxVelocity(TUNING.rollSpeed,TUNING.maxFallSpeed);
     return p;
+  }
+
+  startAttack(time,step=null){
+    super.startAttack(time,step);
+    const body=this.player?.body;
+    if(body?.blocked?.down){
+      const boost=ATTACK_LUNGE[this.comboStep]||ATTACK_LUNGE[0];
+      body.velocity.x+=this.facing*boost;
+    }
+  }
+
+  damageEnemy(enemy,step){
+    if(!enemy?.alive)return;
+    const hpBefore=enemy.hp;
+    super.damageEnemy(enemy,step);
+    if(enemy.hp>=hpBefore)return;
+
+    const body=this.player?.body;
+    if(body)body.velocity.x-=this.facing*(ATTACK_RECOIL[step]||ATTACK_RECOIL[0]);
+
+    this.tweens.killTweensOf(enemy.sprite);
+    const kickAngle=this.facing*(step===2?10:(step===1?7:5));
+    this.tweens.add({
+      targets:enemy.sprite,
+      angle:kickAngle,
+      scaleY:step===2?.82:.9,
+      duration:45,
+      yoyo:true,
+      ease:'Quad.easeOut',
+      onComplete:()=>{
+        if(enemy.alive){
+          enemy.sprite.setAngle(0);
+          enemy.sprite.scaleY=1;
+        }
+      }
+    });
+    this.spawnImpactBurst(enemy.sprite.x,enemy.sprite.y-8,step);
+  }
+
+  spawnImpactBurst(x,y,step){
+    const radius=step===2?24:(step===1?19:15);
+    const color=step===2?0xffe7a8:0xf4fbff;
+    const ring=this.add.circle(x,y,5,0xffffff,0).setStrokeStyle(step===2?4:3,color,.95).setDepth(75);
+    this.tweens.add({
+      targets:ring,
+      scale:radius/5,
+      alpha:0,
+      duration:step===2?155:120,
+      ease:'Quad.easeOut',
+      onComplete:()=>ring.destroy()
+    });
+
+    const slash=this.add.rectangle(x+this.facing*4,y,step===2?34:24,3,color,.9).setDepth(76).setAngle(step===1?22:-18*this.facing);
+    this.tweens.add({
+      targets:slash,
+      scaleX:1.45,
+      alpha:0,
+      duration:100+step*20,
+      ease:'Quad.easeOut',
+      onComplete:()=>slash.destroy()
+    });
   }
 
   startRoll(time,b){
@@ -187,7 +248,7 @@ export class GameSceneV05 extends GameScene {
     this.player.aura.setAlpha(.015+Math.min(.025,Math.abs(body?.velocity?.x||0)/10000));
 
     if(this.debug?.text){
-      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.5.8 R3 PRODUCTION'));
+      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.5.9 COMBAT PASS'));
     }
   }
 }
