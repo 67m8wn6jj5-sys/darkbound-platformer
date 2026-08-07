@@ -21,39 +21,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build separate protagonist animation PNGs
+      - name: Restore clean protagonist animation PNGs
         run: |
-          python -m pip install --quiet pillow
-          python - <<'PY'
-          from PIL import Image, ImageFile
-          from pathlib import Path
-
-          ImageFile.LOAD_TRUNCATED_IMAGES = True
-          source = Image.open('assets/v05/protagonist-atlas.png')
-          source.load()
-          source = source.convert('RGBA')
-
-          out = Path('assets/v05/animations')
-          out.mkdir(parents=True, exist_ok=True)
-          sequences = {
-              'idle': (0, 7),
-              'run': (1, 7),
-              'jump': (2, 6),
-              'attack1': (3, 7),
-              'attack2': (4, 7),
-              'attack3': (5, 8),
-              'roll': (6, 8),
-              'hit': (7, 8),
-              'death': (8, 8),
-          }
-          size = 128
-          for name, (row, count) in sequences.items():
-              strip = Image.new('RGBA', (count * size, size), (0, 0, 0, 0))
-              for col in range(count):
-                  frame = source.crop((col*size, row*size, (col+1)*size, (row+1)*size))
-                  strip.alpha_composite(frame, (col*size, 0))
-              strip.save(out / f'{name}.png', 'PNG')
-          PY
+          set -euo pipefail
+          rm -rf assets/v05/animations
+          mkdir -p assets/v05/animations
+          cat assets/v05/bundle/chunk_* | base64 --decode > /tmp/v05-animations.tgz
+          tar -xzf /tmp/v05-animations.tgz -C assets/v05/animations
+          test "$(find assets/v05/animations -maxdepth 1 -name '*.png' | wc -l)" -eq 9
+          file assets/v05/animations/*.png
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

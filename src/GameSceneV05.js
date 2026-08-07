@@ -1,7 +1,7 @@
 import { GameScene } from './GameScene.js';
 import { TUNING } from './config.js';
 
-const FRAME_SIZE = 128;
+const FRAME_SIZE = 48;
 const SEQUENCES = Object.freeze({
   idle:    { frames:7, frameRate:6 },
   run:     { frames:7, frameRate:14 },
@@ -16,12 +16,12 @@ const SEQUENCES = Object.freeze({
 
 export class GameSceneV05 extends GameScene {
   preload(){
-    // Each animation is its own independent PNG spritesheet. The old combined
-    // protagonist atlas is never loaded by the game.
+    // v0.5.7: each animation is its own clean PNG spritesheet reconstructed
+    // from the approved standalone source assets. The damaged atlas is not used.
     for(const name of Object.keys(SEQUENCES)){
       this.load.spritesheet(
         `v05-${name}`,
-        `./assets/v05/animations/${name}.png?v=056`,
+        `./assets/v05/animations/${name}.png?v=057`,
         { frameWidth:FRAME_SIZE, frameHeight:FRAME_SIZE }
       );
     }
@@ -157,7 +157,7 @@ export class GameSceneV05 extends GameScene {
     this.player.aura.setAlpha(.02+Math.min(.04,Math.abs(body?.velocity?.x||0)/8000));
     this.updateProtagonistFrame(time);
     if(this.debug?.text){
-      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.5.6 PRODUCTION'));
+      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.5.7 PRODUCTION'));
     }
   }
 }
