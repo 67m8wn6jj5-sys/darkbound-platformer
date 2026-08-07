@@ -2,99 +2,87 @@ import { GameScene } from './GameScene.js';
 import { TUNING } from './config.js';
 
 const FRAME_SIZE = 128;
-const FRAMES_PER_ROW = 8;
-const TOTAL_ROWS = 9;
-
 const SEQUENCES = Object.freeze({
-  idle:    { row:0, frames:7, frameRate:6 },
-  run:     { row:1, frames:7, frameRate:14 },
-  jump:    { row:2, frames:6, frameRate:10 },
-  attack1: { row:3, frames:7, frameRate:36 },
-  attack2: { row:4, frames:7, frameRate:33 },
-  attack3: { row:5, frames:8, frameRate:29 },
-  roll:    { row:6, frames:8, frameRate:21 },
-  hit:     { row:7, frames:8, frameRate:30 },
-  death:   { row:8, frames:8, frameRate:12 }
+  idle:    { frames:7, frameRate:6 },
+  run:     { frames:7, frameRate:14 },
+  jump:    { frames:6, frameRate:10 },
+  attack1: { frames:7, frameRate:36 },
+  attack2: { frames:7, frameRate:33 },
+  attack3: { frames:8, frameRate:29 },
+  roll:    { frames:8, frameRate:21 },
+  hit:     { frames:8, frameRate:30 },
+  death:   { frames:8, frameRate:12 }
 });
 
 export class GameSceneV05 extends GameScene {
   preload(){
-    this.load.image('v05-protagonist-source','./assets/v05/protagonist-atlas.png?v=054');
+    for(const name of Object.keys(SEQUENCES)){
+      this.load.image(`v05-${name}`,`./assets/v05/animations/${name}.png?v=055`);
+    }
   }
 
   create(){
     this.registerProtagonistFrames();
     super.create();
-
     this.hitAnimStartsAt=-Infinity;
     this.hitAnimEndsAt=-Infinity;
     this.deathAnimStartsAt=-Infinity;
     this.wasGrounded=true;
     this.landingAnimEndsAt=0;
     this.attackFlash.setAlpha(.08);
-    this.currentProtagonistFrame=-1;
-    this.setProtagonistFrame(0);
+    this.currentProtagonistKey='';
+    this.setProtagonistFrame('idle',0);
   }
 
   registerProtagonistFrames(){
-    const texture=this.textures.get('v05-protagonist-source');
-    if(!texture || texture.key==='__MISSING')return;
-
-    for(let row=0;row<TOTAL_ROWS;row++){
-      for(let col=0;col<FRAMES_PER_ROW;col++){
-        const frame=row*FRAMES_PER_ROW+col;
-        const name=`v05-frame-${frame}`;
-        if(texture.has(name))continue;
-        texture.add(name,0,col*FRAME_SIZE,row*FRAME_SIZE,FRAME_SIZE,FRAME_SIZE);
+    for(const [name,sequence] of Object.entries(SEQUENCES)){
+      const texture=this.textures.get(`v05-${name}`);
+      if(!texture || texture.key==='__MISSING')continue;
+      for(let frame=0;frame<sequence.frames;frame++){
+        const frameName=`frame-${frame}`;
+        if(!texture.has(frameName)){
+          texture.add(frameName,0,frame*FRAME_SIZE,0,FRAME_SIZE,FRAME_SIZE);
+        }
       }
     }
   }
 
-  setProtagonistFrame(frameNumber){
+  setProtagonistFrame(name,frameNumber){
     const art=this.player?.art;
-    if(!art)return;
-    const maxFrame=(TOTAL_ROWS*FRAMES_PER_ROW)-1;
-    const frame=Math.max(0,Math.min(maxFrame,Math.floor(frameNumber)));
-    if(frame===this.currentProtagonistFrame)return;
-    art.setFrame(`v05-frame-${frame}`);
-    this.currentProtagonistFrame=frame;
+    const sequence=SEQUENCES[name];
+    if(!art || !sequence)return;
+    const frame=Math.max(0,Math.min(sequence.frames-1,Math.floor(frameNumber)));
+    const key=`${name}:${frame}`;
+    if(key===this.currentProtagonistKey)return;
+    art.setTexture(`v05-${name}`,`frame-${frame}`);
+    art.setDisplaySize(96,96);
+    this.currentProtagonistKey=key;
   }
 
-  frameFromLoop(name,time){
+  loopFrame(name,time){
     const s=SEQUENCES[name];
-    const local=Math.floor((time/1000)*s.frameRate)%s.frames;
-    return s.row*FRAMES_PER_ROW+local;
+    return Math.floor((time/1000)*s.frameRate)%s.frames;
   }
 
-  frameFromProgress(name,progress){
+  progressFrame(name,progress){
     const s=SEQUENCES[name];
     const clamped=Math.max(0,Math.min(.999,progress));
-    const local=Math.min(s.frames-1,Math.floor(clamped*s.frames));
-    return s.row*FRAMES_PER_ROW+local;
+    return Math.min(s.frames-1,Math.floor(clamped*s.frames));
   }
 
   createPlayer(x,y){
     const p=this.add.container(x,y);
     const shadow=this.add.ellipse(0,25,48,11,0x000000,.44);
-    const aura=this.add.ellipse(0,4,42,74,0x69ff52,.025)
-      .setStrokeStyle(1,0x76ff42,.10);
-    const art=this.add.image(0,-27,'v05-protagonist-source','v05-frame-0')
-      .setOrigin(.5,.5)
-      .setDisplaySize(96,96);
+    const aura=this.add.ellipse(0,4,42,74,0x69ff52,.025).setStrokeStyle(1,0x76ff42,.10);
+    const art=this.add.image(0,-27,'v05-idle','frame-0').setOrigin(.5,.5).setDisplaySize(96,96);
     const weaponProxy=this.add.rectangle(16,0,54,8,0xffffff,0).setOrigin(.08,.5);
-
     p.add([shadow,aura,art,weaponProxy]);
     p.art=art;
     p.aura=aura;
     p.weapon=weaponProxy;
     p.cape={setScale(){return this;}};
-
     this.physics.add.existing(p);
-    p.body
-      .setSize(28,54)
-      .setOffset(-14,-30)
-      .setCollideWorldBounds(true)
-      .setMaxVelocity(TUNING.rollSpeed,TUNING.maxFallSpeed);
+    p.body.setSize(28,54).setOffset(-14,-30).setCollideWorldBounds(true).setMaxVelocity(TUNING.rollSpeed,TUNING.maxFallSpeed);
     return p;
   }
 
@@ -129,50 +117,55 @@ export class GameSceneV05 extends GameScene {
     const body=this.player?.body;
     if(!body)return;
     const grounded=!!body.blocked.down;
+    let name='idle';
     let frame=0;
 
     if(this.dead){
+      name='death';
       const elapsed=Math.max(0,time-this.deathAnimStartsAt);
       const duration=((SEQUENCES.death.frames-1)/SEQUENCES.death.frameRate)*1000;
-      frame=this.frameFromProgress('death',Math.min(1,elapsed/Math.max(1,duration)));
+      frame=this.progressFrame(name,Math.min(1,elapsed/Math.max(1,duration)));
     } else if(time<this.hitAnimEndsAt){
-      frame=this.frameFromProgress('hit',(time-this.hitAnimStartsAt)/250);
+      name='hit';
+      frame=this.progressFrame(name,(time-this.hitAnimStartsAt)/250);
     } else if(this.state==='rolling'){
+      name='roll';
       const startedAt=this.rollEndsAt-TUNING.rollDurationMs;
-      frame=this.frameFromProgress('roll',(time-startedAt)/TUNING.rollDurationMs);
+      frame=this.progressFrame(name,(time-startedAt)/TUNING.rollDurationMs);
     } else if(this.state?.startsWith('attack-')){
-      const name=['attack1','attack2','attack3'][this.comboStep]||'attack1';
+      name=['attack1','attack2','attack3'][this.comboStep]||'attack1';
       const duration=TUNING.attackDurationsMs[this.comboStep]||TUNING.attackDurationsMs[0];
-      frame=this.frameFromProgress(name,(time-this.attackStartsAt)/duration);
+      frame=this.progressFrame(name,(time-this.attackStartsAt)/duration);
     } else if(!grounded){
-      const local=body.velocity.y<-260?1:(body.velocity.y<80?2:(body.velocity.y<420?3:4));
-      frame=SEQUENCES.jump.row*FRAMES_PER_ROW+local;
+      name='jump';
+      frame=body.velocity.y<-260?1:(body.velocity.y<80?2:(body.velocity.y<420?3:4));
     } else if(!this.wasGrounded){
+      name='jump';
       this.landingAnimEndsAt=time+95;
-      frame=SEQUENCES.jump.row*FRAMES_PER_ROW+5;
+      frame=5;
     } else if(time<this.landingAnimEndsAt){
-      frame=SEQUENCES.jump.row*FRAMES_PER_ROW+5;
+      name='jump';
+      frame=5;
     } else if(this.state==='running'){
-      frame=this.frameFromLoop('run',time);
+      name='run';
+      frame=this.loopFrame(name,time);
     } else {
-      frame=this.frameFromLoop('idle',time);
+      frame=this.loopFrame(name,time);
     }
 
-    this.setProtagonistFrame(frame);
+    this.setProtagonistFrame(name,frame);
     this.wasGrounded=grounded;
   }
 
   update(time,delta){
     super.update(time,delta);
     if(!this.player?.art)return;
-
     const body=this.player.body;
     this.player.art.setPosition(0,-27).setDisplaySize(96,96);
     this.player.aura.setAlpha(.02+Math.min(.04,Math.abs(body?.velocity?.x||0)/8000));
     this.updateProtagonistFrame(time);
-
     if(this.debug?.text){
-      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.5.4 PRODUCTION'));
+      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.5.5 PRODUCTION'));
     }
   }
 }
