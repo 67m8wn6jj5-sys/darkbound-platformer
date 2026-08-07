@@ -228,10 +228,13 @@ export class GameScene extends Phaser.Scene {
     }
 
     const rolling=time<this.rollEndsAt;
-    const attacking=time<this.attackEndsAt;
-    if(cmd.attackPressed&&!rolling&&!attacking)this.startAttack(time);
+    let attacking=time<this.attackEndsAt;
+    if(cmd.attackPressed&&!rolling&&!attacking){
+      this.startAttack(time);
+      attacking=time<this.attackEndsAt;
+    }
 
-    if(time<this.attackEndsAt){
+    if(attacking){
       this.updateAttack(time);
     } else {
       this.attackFlash.setVisible(false);
@@ -240,7 +243,7 @@ export class GameScene extends Phaser.Scene {
     if(!rolling){
       const target=cmd.move*TUNING.runSpeed;
       const accel=grounded?TUNING.groundAcceleration:TUNING.airAcceleration;
-      const movementScale=attacking?.55:1;
+      const movementScale=attacking ? 0.55 : 1;
       b.velocity.x=moveTowards(b.velocity.x,target*movementScale,accel*delta/1000);
       if(cmd.move===0)b.velocity.x=moveTowards(b.velocity.x,0,(grounded?TUNING.groundDrag:TUNING.airDrag)*delta/1000);
 
