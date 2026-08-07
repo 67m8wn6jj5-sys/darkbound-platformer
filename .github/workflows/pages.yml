@@ -103,14 +103,14 @@ jobs:
           mkdir -p assets/v05/production58
           unzip -q Darkbound_v0.5.8_Production_Sprites.zip -d assets/v05/production58
           test -f assets/v05/production58/manifest.json
-          test "$(find assets/v05/production58 -type f -name '*.png' | wc -l)" -eq 53
+          test "$(find assets/v05/production58 -type f -name '*.png' | wc -l)" -eq 54
           python - <<'PY'
           import json
           from pathlib import Path
           p=Path('assets/v05/production58/manifest.json')
           data=json.loads(p.read_text())
           assert data['version']=='v0.5.8-production-cleanup'
-          assert sum(v['frames'] for v in data['sequences'].values())==53
+          assert sum(v['frames'] for v in data['sequences'].values())==54
           PY
 
       - name: Configure Pages
