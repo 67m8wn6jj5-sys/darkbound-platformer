@@ -22,7 +22,7 @@ const SEQUENCES = Object.freeze({
 });
 
 function textureKey(name,index){
-  return `v058r3-${name}-${String(index+1).padStart(2,'0')}`;
+  return `v058r4-${name}-${String(index+1).padStart(2,'0')}`;
 }
 
 export class GameSceneV05 extends GameScene {
@@ -30,7 +30,7 @@ export class GameSceneV05 extends GameScene {
     for(const [name,sequence] of Object.entries(SEQUENCES)){
       for(let i=0;i<sequence.frames;i++){
         const file=`${sequence.folder}_${String(i+1).padStart(2,'0')}.png`;
-        this.load.image(textureKey(name,i),`${ASSET_ROOT}/${sequence.folder}/${file}?v=058r3`);
+        this.load.image(textureKey(name,i),`${ASSET_ROOT}/${sequence.folder}/${file}?v=058r4`);
       }
     }
   }
@@ -248,7 +248,7 @@ export class GameSceneV05 extends GameScene {
     this.player.aura.setAlpha(.015+Math.min(.025,Math.abs(body?.velocity?.x||0)/10000));
 
     if(this.debug?.text){
-      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.5.9 COMBAT PASS'));
+      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.5.9 R4 JUMP + COMBAT PASS'));
     }
   }
 }
