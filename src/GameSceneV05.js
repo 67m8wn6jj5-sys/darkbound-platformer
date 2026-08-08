@@ -10,19 +10,19 @@ const ATTACK_LUNGE = [90,115,145];
 const ATTACK_RECOIL = [28,36,48];
 
 const SEQUENCES = Object.freeze({
-  idle:    { folder:'idle',            frames:5, frameRate:1  },
-  run:     { folder:'run',             frames:7, frameRate:14 },
-  jump:    { folder:'jump',            frames:4, frameRate:10 },
-  attack1: { folder:'attack_combo',    frames:5, frameRate:30 },
-  attack2: { folder:'attack_overhead', frames:6, frameRate:28 },
-  attack3: { folder:'attack_heavy',    frames:5, frameRate:24 },
-  roll:    { folder:'dodge_roll',      frames:7, frameRate:20 },
-  hit:     { folder:'hurt',            frames:5, frameRate:20 },
-  death:   { folder:'death',           frames:5, frameRate:8  }
+  idle:    { folder:'idle',   frames:6, frameRate:2  },
+  run:     { folder:'run',    frames:6, frameRate:14 },
+  jump:    { folder:'jump',   frames:4, frameRate:10 },
+  attack1: { folder:'attack', frames:8, frameRate:30 },
+  attack2: { folder:'attack', frames:8, frameRate:28 },
+  attack3: { folder:'attack', frames:8, frameRate:24 },
+  roll:    { folder:'dodge',  frames:8, frameRate:20 },
+  hit:     { folder:'hurt',   frames:7, frameRate:20 },
+  death:   { folder:'death',  frames:8, frameRate:8  }
 });
 
 function textureKey(name,index){
-  return `v058r4-${name}-${String(index+1).padStart(2,'0')}`;
+  return `approved-r2-${name}-${String(index+1).padStart(2,'0')}`;
 }
 
 export class GameSceneV05 extends GameScene {
@@ -30,7 +30,7 @@ export class GameSceneV05 extends GameScene {
     for(const [name,sequence] of Object.entries(SEQUENCES)){
       for(let i=0;i<sequence.frames;i++){
         const file=`${sequence.folder}_${String(i+1).padStart(2,'0')}.png`;
-        this.load.image(textureKey(name,i),`${ASSET_ROOT}/${sequence.folder}/${file}?v=058r4`);
+        this.load.image(textureKey(name,i),`${ASSET_ROOT}/${sequence.folder}/${file}?v=approved-r2`);
       }
     }
   }
@@ -165,7 +165,7 @@ export class GameSceneV05 extends GameScene {
       this.player.setAlpha(1);
       if(!this.dead){
         this.hitAnimStartsAt=time;
-        this.hitAnimEndsAt=time+250;
+        this.hitAnimEndsAt=time+300;
       }
     }
   }
@@ -194,7 +194,7 @@ export class GameSceneV05 extends GameScene {
       frame=this.progressFrame(name,Math.min(1,elapsed/Math.max(1,duration)));
     } else if(time<this.hitAnimEndsAt){
       name='hit';
-      frame=this.progressFrame(name,(time-this.hitAnimStartsAt)/250);
+      frame=this.progressFrame(name,(time-this.hitAnimStartsAt)/300);
     } else if(this.state==='rolling'){
       name='roll';
       const startedAt=this.rollEndsAt-TUNING.rollDurationMs;
@@ -218,7 +218,7 @@ export class GameSceneV05 extends GameScene {
       frame=this.loopFrame(name,time);
     } else {
       name='idle';
-      frame=0;
+      frame=this.loopFrame(name,time);
     }
 
     this.setProtagonistFrame(name,frame);
@@ -248,7 +248,7 @@ export class GameSceneV05 extends GameScene {
     this.player.aura.setAlpha(.015+Math.min(.025,Math.abs(body?.velocity?.x||0)/10000));
 
     if(this.debug?.text){
-      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.5.9 R4 JUMP + COMBAT PASS'));
+      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.6.0 APPROVED R2'));
     }
   }
 }
