@@ -21,23 +21,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Unpack v0.5.8 R4 production protagonist frames
+      - name: Unpack approved production protagonist frames R2
         run: |
           set -euo pipefail
           rm -rf assets/v05/production58
           mkdir -p assets/v05/production58
-          unzip -q -o Darkbound_v0.5.8_Production_Sprites_R4_JumpReplacement.zip -d assets/v05/production58
+          unzip -q -o Darkbound_Approved_Production_Sprites_R2.zip -d assets/v05/production58
           test -f assets/v05/production58/manifest.json
-          test "$(find assets/v05/production58 -type f -name '*.png' | wc -l)" -eq 54
+          test "$(find assets/v05/production58 -type f -name '*.png' | wc -l)" -eq 47
           python - <<'PY'
           import json
           from pathlib import Path
           data=json.loads(Path('assets/v05/production58/manifest.json').read_text())
-          assert data['version']=='v0.5.8-cleanup-r4-jump-replacement'
-          assert data['canvas']==[512,512]
-          assert sum(v['frames'] for v in data['sequences'].values())==54
-          assert data['sequences']['jump']['frames']==4
-          assert data['sequences']['idle']['runtime_frames']==[1]
+          assert data['canvas']=='512x512 RGBA transparent'
+          expected={'idle':6,'run':6,'jump':4,'attack':8,'dodge':8,'hurt':7,'death':8}
+          assert data['actions']==expected
+          assert sum(expected.values())==47
+          assert data.get('revision')=='R2 - corrected RUN frames'
           PY
 
       - name: Configure Pages
