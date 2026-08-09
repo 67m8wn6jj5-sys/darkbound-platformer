@@ -1,33 +1,29 @@
 import { GameScene } from './GameScene.js';
 import { TUNING } from './config.js';
+import { PIXELLAB_MANIFEST } from './pixellabManifest.js';
 
 const FALLBACK_ASSET_ROOT = './assets/v05/production58';
 const PIXELLAB_ROOT = './assets/v05/pixellab_protagonist';
-const PIXELLAB_WIDTH_PX = 192;
-const PIXELLAB_ANCHOR_Y = 27;
 const ART_SCALE = 0.38;
+const PIXELLAB_SCALE = 1.0;
+const PIXELLAB_ART_Y = 27;
 const ATTACK_LUNGE = [90,115,145];
 const ATTACK_RECOIL = [28,36,48];
 
-const FALLBACK_SEQUENCES = Object.freeze({
-  idle:{folder:'idle',frames:6}, run:{folder:'run',frames:6}, jump:{folder:'jump',frames:4},
-  attack:{folder:'attack',frames:8}, roll:{folder:'dodge',frames:8}, hit:{folder:'hurt',frames:7}, death:{folder:'death',frames:8}
-});
+const LOOP_FPS = Object.freeze({idle:8,run:14});
+const ONESHOT_FPS = Object.freeze({jump:12,fall:12,light_attack:18,heavy_attack:16,dash:18,hit:16,death:10});
 
-const PIXELLAB_GIFS = Object.freeze({
-  idle:`${PIXELLAB_ROOT}/idle.gif?v=pixellab-protagonist-1`,
-  run:`${PIXELLAB_ROOT}/run.gif?v=pixellab-protagonist-1`,
-  jump:`${PIXELLAB_ROOT}/jump.gif?v=pixellab-protagonist-1`,
-  fall:`${PIXELLAB_ROOT}/fall.gif?v=pixellab-protagonist-1`,
-  light_attack:`${PIXELLAB_ROOT}/light_attack.gif?v=pixellab-protagonist-1`,
-  heavy_attack:`${PIXELLAB_ROOT}/heavy_attack.gif?v=pixellab-protagonist-1`,
-  dash:`${PIXELLAB_ROOT}/dash.gif?v=pixellab-protagonist-1`,
-  hit:`${PIXELLAB_ROOT}/hit.gif?v=pixellab-protagonist-1`,
-  death:`${PIXELLAB_ROOT}/death.gif?v=pixellab-protagonist-1`
+const FALLBACK_SEQUENCES = Object.freeze({
+  idle:{folder:'idle',frames:6},run:{folder:'run',frames:6},jump:{folder:'jump',frames:4},
+  attack:{folder:'attack',frames:8},roll:{folder:'dodge',frames:8},hit:{folder:'hurt',frames:7},death:{folder:'death',frames:8}
 });
 
 function fallbackKey(name,index){
   return `fallback-${name}-${String(index+1).padStart(2,'0')}`;
+}
+
+function pxKey(action,direction,index){
+  return `px-${action}-${direction}-${String(index).padStart(3,'0')}`;
 }
 
 export class GameSceneV05 extends GameScene {
@@ -38,6 +34,16 @@ export class GameSceneV05 extends GameScene {
         this.load.image(fallbackKey(name,i),`${FALLBACK_ASSET_ROOT}/${sequence.folder}/${file}?v=approved-r2`);
       }
     }
+
+    for(const [action,directions] of Object.entries(PIXELLAB_MANIFEST)){
+      for(const direction of ['east','west']){
+        const count=directions[direction]||0;
+        for(let i=0;i<count;i++){
+          const file=`frame_${String(i).padStart(3,'0')}.png`;
+          this.load.image(pxKey(action,direction,i),`${PIXELLAB_ROOT}/${action}/${direction}/${file}?v=pixellab-protagonist-2`);
+        }
+      }
+    }
   }
 
   create(){
@@ -45,59 +51,17 @@ export class GameSceneV05 extends GameScene {
     this.hitAnimStartsAt=-Infinity;
     this.hitAnimEndsAt=-Infinity;
     this.deathAnimStartsAt=-Infinity;
-    this.currentPixelLabState='';
+    this.pixelState='idle';
+    this.pixelStateStartedAt=this.time.now;
+    this.pixelDirection='east';
+    this.currentPixelKey='';
     this.attackFlash.setAlpha(0);
     this.attackArc.setVisible(false);
-    this.createPixelLabProtagonist();
     this.player.art.setVisible(false);
-  }
-
-  createPixelLabProtagonist(){
-    const img=document.createElement('img');
-    img.alt='';
-    img.draggable=false;
-    img.style.width=`${PIXELLAB_WIDTH_PX}px`;
-    img.style.height='auto';
-    img.style.display='block';
-    img.style.imageRendering='pixelated';
-    img.style.pointerEvents='none';
-    img.style.userSelect='none';
-    img.style.webkitUserDrag='none';
-    img.style.transformOrigin='50% 100%';
-
-    this.pixelLabImg=img;
-    this.pixelLabDom=this.add.dom(this.player.x,this.player.y+PIXELLAB_ANCHOR_Y,img)
+    this.pixelArt=this.add.image(this.player.x,this.player.y+PIXELLAB_ART_Y,pxKey('idle','east',0))
       .setOrigin(.5,1)
+      .setScale(PIXELLAB_SCALE)
       .setDepth(100);
-    this.setPixelLabState('idle',true);
-  }
-
-  setPixelLabState(name,force=false){
-    if(!this.pixelLabImg || !PIXELLAB_GIFS[name])return;
-    if(!force && this.currentPixelLabState===name)return;
-    this.currentPixelLabState=name;
-    this.pixelLabImg.src=PIXELLAB_GIFS[name];
-  }
-
-  resolvePixelLabState(time){
-    const body=this.player?.body;
-    if(!body)return 'idle';
-    if(this.dead)return 'death';
-    if(time<this.hitAnimEndsAt)return 'hit';
-    if(this.state==='rolling')return 'dash';
-    if(this.state?.startsWith('attack-'))return this.comboStep===2?'heavy_attack':'light_attack';
-    if(!body.blocked.down)return body.velocity.y<0?'jump':'fall';
-    if(this.state==='running')return 'run';
-    return 'idle';
-  }
-
-  updatePixelLabProtagonist(time){
-    if(!this.pixelLabDom || !this.pixelLabImg)return;
-    const state=this.resolvePixelLabState(time);
-    this.setPixelLabState(state);
-    this.pixelLabDom.setPosition(this.player.x,this.player.y+PIXELLAB_ANCHOR_Y).setVisible(true);
-    this.pixelLabImg.style.transform=this.facing<0?'scaleX(-1)':'scaleX(1)';
-    this.player.art.setVisible(false);
   }
 
   createPlayer(x,y){
@@ -116,12 +80,58 @@ export class GameSceneV05 extends GameScene {
     return p;
   }
 
+  setPixelState(name,time,force=false){
+    if(!PIXELLAB_MANIFEST[name])return;
+    if(!force && this.pixelState===name)return;
+    this.pixelState=name;
+    this.pixelStateStartedAt=time;
+    this.currentPixelKey='';
+  }
+
+  resolvePixelState(time){
+    const body=this.player?.body;
+    if(!body)return 'idle';
+    if(this.dead)return 'death';
+    if(time<this.hitAnimEndsAt)return 'hit';
+    if(this.state==='rolling')return 'dash';
+    if(this.state?.startsWith('attack-'))return this.comboStep===2?'heavy_attack':'light_attack';
+    if(!body.blocked.down)return body.velocity.y<0?'jump':'fall';
+    if(this.state==='running')return 'run';
+    return 'idle';
+  }
+
+  frameForState(action,direction,time){
+    const count=PIXELLAB_MANIFEST[action]?.[direction]||1;
+    const elapsed=Math.max(0,time-this.pixelStateStartedAt);
+    if(LOOP_FPS[action])return Math.floor(elapsed/1000*LOOP_FPS[action])%count;
+    const fps=ONESHOT_FPS[action]||12;
+    return Math.min(count-1,Math.floor(elapsed/1000*fps));
+  }
+
+  updatePixelArt(time){
+    if(!this.pixelArt)return;
+    const action=this.resolvePixelState(time);
+    this.setPixelState(action,time);
+    const direction=this.facing<0?'west':'east';
+    if(direction!==this.pixelDirection){
+      this.pixelDirection=direction;
+      this.currentPixelKey='';
+    }
+    const frame=this.frameForState(action,direction,time);
+    const key=pxKey(action,direction,frame);
+    if(key!==this.currentPixelKey){
+      this.pixelArt.setTexture(key);
+      this.currentPixelKey=key;
+    }
+    this.pixelArt.setPosition(this.player.x,this.player.y+PIXELLAB_ART_Y).setOrigin(.5,1).setScale(PIXELLAB_SCALE).setVisible(true);
+    this.player.art.setVisible(false);
+  }
+
   startAttack(time,step=null){
     super.startAttack(time,step);
     const body=this.player?.body;
-    if(body?.blocked?.down){
-      body.velocity.x+=this.facing*(ATTACK_LUNGE[this.comboStep]||ATTACK_LUNGE[0]);
-    }
+    if(body?.blocked?.down)body.velocity.x+=this.facing*(ATTACK_LUNGE[this.comboStep]||ATTACK_LUNGE[0]);
+    this.setPixelState(this.comboStep===2?'heavy_attack':'light_attack',time,true);
   }
 
   damageEnemy(enemy,step){
@@ -148,6 +158,7 @@ export class GameSceneV05 extends GameScene {
     b.setVelocityX(this.facing*TUNING.rollSpeed);
     this.tweens.killTweensOf(this.player);
     this.player.setAlpha(1);
+    this.setPixelState('dash',time,true);
   }
 
   damagePlayer(time,enemy){
@@ -158,8 +169,8 @@ export class GameSceneV05 extends GameScene {
       this.player.setAlpha(1);
       if(!this.dead){
         this.hitAnimStartsAt=time;
-        this.hitAnimEndsAt=time+360;
-        this.setPixelLabState('hit',true);
+        this.hitAnimEndsAt=time+420;
+        this.setPixelState('hit',time,true);
       }
     }
   }
@@ -167,7 +178,7 @@ export class GameSceneV05 extends GameScene {
   killPlayer(){
     this.deathAnimStartsAt=this.time.now;
     super.killPlayer();
-    this.setPixelLabState('death',true);
+    this.setPixelState('death',this.time.now,true);
   }
 
   drawAttackArc(){
@@ -178,7 +189,7 @@ export class GameSceneV05 extends GameScene {
   update(time,delta){
     super.update(time,delta);
     if(!this.player)return;
-    this.updatePixelLabProtagonist(time);
+    this.updatePixelArt(time);
     const body=this.player.body;
     this.player.aura.setAlpha(.015+Math.min(.025,Math.abs(body?.velocity?.x||0)/10000));
     if(this.debug?.text){
