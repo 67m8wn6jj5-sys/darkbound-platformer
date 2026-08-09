@@ -29,61 +29,13 @@ jobs:
           unzip -q -o Darkbound_Approved_Production_Sprites_R2.zip -d assets/v05/production58
           test -f assets/v05/production58/manifest.json
 
-      - name: Unpack and normalize PixelLab protagonist GIFs
+      - name: Inspect PixelLab protagonist archive
         run: |
           set -euo pipefail
-          rm -rf .pixellab-unpack assets/v05/pixellab_protagonist
-          mkdir -p .pixellab-unpack assets/v05/pixellab_protagonist
-          unzip -q -o 'Protagonist production sprites.zip' -d .pixellab-unpack
-          python - <<'PY'
-          from pathlib import Path
-          import shutil, re, json
-
-          root=Path('.pixellab-unpack')
-          out=Path('assets/v05/pixellab_protagonist')
-          gifs=[p for p in root.rglob('*') if p.is_file() and p.suffix.lower()=='.gif']
-          if not gifs:
-              raise SystemExit('No GIF files found in Protagonist production sprites.zip')
-
-          def norm(p):
-              return re.sub(r'[^a-z0-9]+',' ',p.stem.lower()).strip()
-
-          aliases={
-              'idle':['idle'],
-              'run':['run','running','sprint'],
-              'jump':['jump','jumping','rise','rising'],
-              'fall':['fall','falling'],
-              'light_attack':['light attack','light sword','light swing','quick attack','slash'],
-              'heavy_attack':['heavy attack','heavy sword','heavy swing','power attack'],
-              'dash':['dash','dodge','roll'],
-              'hit':['hit','knockback','knocked back','hurt','damage'],
-              'death':['death','dead','dying','die'],
-          }
-
-          chosen={}
-          used=set()
-          for key, terms in aliases.items():
-              scored=[]
-              for p in gifs:
-                  if p in used: continue
-                  n=norm(p)
-                  score=max((len(t) for t in terms if t in n), default=0)
-                  if score: scored.append((score,p))
-              if not scored:
-                  raise SystemExit(f'Missing GIF for {key}. Found: {[p.name for p in gifs]}')
-              scored.sort(key=lambda x:(x[0],len(x[1].name)), reverse=True)
-              p=scored[0][1]
-              chosen[key]=p
-              used.add(p)
-
-          for key,p in chosen.items():
-              shutil.copy2(p,out/f'{key}.gif')
-
-          (out/'manifest.json').write_text(json.dumps({k:v.name for k,v in chosen.items()},indent=2))
-          print('PixelLab mapping:')
-          for k,v in chosen.items(): print(f'  {k}: {v.name}')
-          PY
-          test "$(find assets/v05/pixellab_protagonist -maxdepth 1 -type f -name '*.gif' | wc -l)" -eq 9
+          echo '--- PixelLab archive listing ---'
+          unzip -Z1 'Protagonist production sprites.zip'
+          echo '--- end listing ---'
+          exit 1
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
