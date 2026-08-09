@@ -6,7 +6,10 @@ const FALLBACK_ASSET_ROOT = './assets/v05/production58';
 const PIXELLAB_ROOT = './assets/v05/pixellab_protagonist';
 const ART_SCALE = 0.38;
 const PIXELLAB_SCALE = 1.0;
-const PIXELLAB_ART_Y = 27;
+// PixelLab frames include transparent padding below the character. Keep the
+// physics body on the real floor and lower only the rendered art so the
+// visible boots meet the collision surface.
+const PIXELLAB_ART_Y = 118;
 const ATTACK_LUNGE = [90,115,145];
 const ATTACK_RECOIL = [28,36,48];
 
@@ -193,7 +196,7 @@ export class GameSceneV05 extends GameScene {
     const body=this.player.body;
     this.player.aura.setAlpha(.015+Math.min(.025,Math.abs(body?.velocity?.x||0)/10000));
     if(this.debug?.text){
-      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.7.0 PIXELLAB PROTAGONIST'));
+      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.7.1 PIXELLAB ALIGNMENT'));
     }
   }
 }
