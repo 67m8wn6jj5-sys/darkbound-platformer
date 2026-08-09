@@ -33,6 +33,9 @@ try {
       gamepad: typeof navigator.getGamepads === 'function',
       activePointers: 5
     },
+    dom: {
+      createContainer: true
+    },
     scene: [GameSceneV05],
     render: { antialias: true, pixelArt: false }
   };
