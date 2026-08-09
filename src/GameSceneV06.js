@@ -4,6 +4,7 @@ import { ENEMY1_MANIFEST } from './enemy1Manifest.js';
 const ENEMY_DEATH_FPS = 12;
 const ENEMY_DEATH_HOLD_MS = 180;
 const ENEMY_DEATH_FADE_MS = 240;
+const ENEMY_DEATH_Y_OFFSET = 10;
 
 export class GameSceneV06 extends GameSceneV05 {
   killEnemy(enemy) {
@@ -40,7 +41,10 @@ export class GameSceneV06 extends GameSceneV05 {
 
   updateEnemy(enemy, time, index) {
     if (enemy?.state === 'dead') {
-      if (ENEMY1_MANIFEST.death) this.updateEnemyArt(enemy, time);
+      if (ENEMY1_MANIFEST.death) {
+        this.updateEnemyArt(enemy, time);
+        if (enemy.sprite?.art) enemy.sprite.art.y += ENEMY_DEATH_Y_OFFSET;
+      }
 
       if (!enemy.deathFadeStarted && time >= (enemy.deathEndsAt || 0)) {
         enemy.deathFadeStarted = true;
@@ -61,7 +65,7 @@ export class GameSceneV06 extends GameSceneV05 {
   update(time, delta) {
     super.update(time, delta);
     if (this.debug?.text) {
-      this.debug.setText(this.debug.text.replace('DARKBOUND v0.9.0 COMBAT POLISH', 'DARKBOUND v0.9.1 ENEMY DEATH'));
+      this.debug.setText(this.debug.text.replace('DARKBOUND v0.9.0 COMBAT POLISH', 'DARKBOUND v0.9.2 ENEMY DEATH ALIGN'));
     }
   }
 }
