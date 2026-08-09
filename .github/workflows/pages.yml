@@ -105,7 +105,7 @@ jobs:
           set -euo pipefail
           rm -rf .enemy2-unpack assets/v05/enemy2
           mkdir -p .enemy2-unpack assets/v05/enemy2
-          unzip -q -o 'Enemy 2 .zip' -d .enemy2-unpack
+          unzip -q -o 'Enemy 2  2.zip' -d .enemy2-unpack
           python - <<'PY'
           from pathlib import Path
           import shutil, re, json
@@ -115,12 +115,11 @@ jobs:
           def norm(p): return str(p).lower().replace('-','_').replace(' ','_')
           def action(p):
               s=norm(p)
-              # Attack animation paths contain both "sling" and "rock"; classify attacks first.
               if 'sling' in s or 'throw' in s or 'attack' in s or 'shoot' in s: return 'attack'
-              if 'death' in s or 'dead' in s: return 'death'
-              if 'hit' in s or 'hurt' in s or 'knock' in s: return 'hit'
+              if 'death' in s or 'dead' in s or 'dying' in s: return 'death'
+              if 'hit' in s or 'hurt' in s or 'knock' in s or 'damage' in s: return 'hit'
               if 'rock' in s or 'stone' in s or 'projectile' in s: return 'rock'
-              if 'idle' in s or 'walk' in s or 'run' in s: return 'patrol'
+              if 'walk' in s or 'run' in s or 'idle' in s: return 'patrol'
               return None
           manifest={}
           rocks=[p for p in pngs if action(p)=='rock']
@@ -128,7 +127,7 @@ jobs:
           rock=rocks[0]; (out/'rock').mkdir(parents=True,exist_ok=True); shutil.copy2(rock,out/'rock/rock.png')
           manifest['rock']='rock/rock.png'
           for a in ('patrol','attack','hit','death'):
-              picked=[p for p in pngs if action(p)==a]
+              picked=[p for p in pngs if action(p)==a and p.name.startswith('frame_')]
               if not picked: continue
               manifest[a]={}; bydir={}
               for d in ('east','west'):
@@ -143,7 +142,7 @@ jobs:
                   dest=out/a/d; dest.mkdir(parents=True,exist_ok=True)
                   for i,p in enumerate(bydir[d]): shutil.copy2(p,dest/f'frame_{i:03d}.png')
                   manifest[a][d]=len(bydir[d])
-          for required in ('patrol','attack'):
+          for required in ('patrol','attack','hit','death'):
               if required not in manifest: raise SystemExit(f'Could not identify Enemy 2 {required} frames; files: {[str(p) for p in pngs]}')
           (out/'manifest.json').write_text(json.dumps(manifest,indent=2))
           Path('src/enemy2Manifest.js').write_text('export const ENEMY2_MANIFEST = '+json.dumps(manifest,separators=(',',':'))+';\n')
