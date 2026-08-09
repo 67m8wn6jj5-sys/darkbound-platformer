@@ -21,7 +21,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Unpack approved production protagonist frames R2
+      - name: Unpack approved fallback protagonist frames R2
         run: |
           set -euo pipefail
           rm -rf assets/v05/production58
@@ -29,13 +29,56 @@ jobs:
           unzip -q -o Darkbound_Approved_Production_Sprites_R2.zip -d assets/v05/production58
           test -f assets/v05/production58/manifest.json
 
-      - name: Inspect PixelLab protagonist archive
+      - name: Normalize PixelLab protagonist animation frames
         run: |
           set -euo pipefail
-          echo '--- PixelLab archive listing ---'
-          unzip -Z1 'Protagonist production sprites.zip'
-          echo '--- end listing ---'
-          exit 1
+          rm -rf .pixellab-unpack assets/v05/pixellab_protagonist
+          mkdir -p .pixellab-unpack assets/v05/pixellab_protagonist
+          unzip -q -o 'Protagonist production sprites.zip' -d .pixellab-unpack
+          python - <<'PY'
+          from pathlib import Path
+          import shutil, re, json
+
+          root=Path('.pixellab-unpack')
+          out=Path('assets/v05/pixellab_protagonist')
+
+          action_markers={
+              'idle':'dark-fantasy-Idle',
+              'run':'dark-fantasy-Sprinting',
+              'jump':'dark-fantasy-Jump',
+              'fall':'dark-fantasy-Falling',
+              'light_attack':'dark-fantasy-Light_Sword_attack',
+              'heavy_attack':'dark-fantasy-Heavy_sword_attack',
+              'dash':'dark-fantasy-Dash',
+              'hit':'dark-fantasy-Hit_knocked_back',
+              'death':'dark-fantasy-Death',
+          }
+
+          manifest={}
+          for action,marker in action_markers.items():
+              manifest[action]={}
+              candidates=[p for p in root.rglob('frame_*.png') if '__MACOSX' not in p.parts and marker.lower() in str(p).lower()]
+              if not candidates:
+                  raise SystemExit(f'No frames found for {action}')
+              for direction in ('east','west'):
+                  frames=[p for p in candidates if direction in [part.lower() for part in p.parts]]
+                  frames.sort(key=lambda p:int(re.search(r'frame_(\d+)',p.stem).group(1)))
+                  if not frames:
+                      raise SystemExit(f'No {direction} frames found for {action}')
+                  dest=out/action/direction
+                  dest.mkdir(parents=True,exist_ok=True)
+                  for i,p in enumerate(frames):
+                      shutil.copy2(p,dest/f'frame_{i:03d}.png')
+                  manifest[action][direction]=len(frames)
+
+          (out/'manifest.json').write_text(json.dumps(manifest,indent=2))
+          module='export const PIXELLAB_MANIFEST = '+json.dumps(manifest,separators=(',',':'))+';\n'
+          Path('src/pixellabManifest.js').write_text(module)
+          print(json.dumps(manifest,indent=2))
+          expected=set(action_markers)
+          assert set(manifest)==expected
+          assert all(manifest[a]['east']>0 and manifest[a]['west']>0 for a in expected)
+          PY
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
