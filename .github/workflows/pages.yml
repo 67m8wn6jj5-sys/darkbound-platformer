@@ -115,10 +115,11 @@ jobs:
           def norm(p): return str(p).lower().replace('-','_').replace(' ','_')
           def action(p):
               s=norm(p)
-              if 'rock' in s or 'stone' in s or 'projectile' in s: return 'rock'
+              # Attack animation paths contain both "sling" and "rock"; classify attacks first.
+              if 'sling' in s or 'throw' in s or 'attack' in s or 'shoot' in s: return 'attack'
               if 'death' in s or 'dead' in s: return 'death'
               if 'hit' in s or 'hurt' in s or 'knock' in s: return 'hit'
-              if 'sling' in s or 'throw' in s or 'attack' in s or 'shoot' in s: return 'attack'
+              if 'rock' in s or 'stone' in s or 'projectile' in s: return 'rock'
               if 'idle' in s or 'walk' in s or 'run' in s: return 'patrol'
               return None
           manifest={}
