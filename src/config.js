@@ -21,12 +21,12 @@ export const TUNING = Object.freeze({
   attackActiveStartMs: [42, 48, 68],
   attackActiveEndMs: [122, 138, 190],
   attackRanges: [80, 88, 104],
-  attackKnockback: [205, 255, 385],
-  hitStopMs: [42, 50, 70],
+  attackKnockback: [225, 285, 440],
+  hitStopMs: [48, 58, 90],
   attackInputBufferMs: 150,
 
   playerMaxHp: 5,
-  playerInvulnMs: 900,
+  playerInvulnMs: 850,
 
   enemyMaxHp: 3,
   enemySpeed: 74,
