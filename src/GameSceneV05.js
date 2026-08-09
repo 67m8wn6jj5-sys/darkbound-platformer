@@ -1,120 +1,188 @@
 import { GameScene } from './GameScene.js';
 import { TUNING } from './config.js';
 
-const ASSET_ROOT = './assets/v05/production58';
+const FALLBACK_ASSET_ROOT = './assets/v05/production58';
+const PIXELLAB_ROOT = './assets/v05/pixellab_protagonist';
+const PIXELLAB_WIDTH_PX = 192;
+const PIXELLAB_ANCHOR_Y = 27;
 const ART_SCALE = 0.38;
-const BREATH_PERIOD_MS = 3200;
-const BREATH_Y_PX = 0.8;
-const BREATH_SCALE_Y = 0.006;
 const ATTACK_LUNGE = [90,115,145];
 const ATTACK_RECOIL = [28,36,48];
-const PIXELLAB_RUN_EAST = './Running_v3_full_sprinting_east.gif?v=pixellab-run-test-5';
-const PIXELLAB_RUN_WEST = './Running_v3_full_sprinting_west.gif?v=pixellab-run-test-5';
-const PIXELLAB_RUN_WIDTH_PX = 192;
-const PIXELLAB_RUN_ANCHOR_Y = 27;
-const PIXELLAB_RUN_VISUAL_SHIFT_Y = 23;
 
-const SEQUENCES = Object.freeze({
-  idle:{folder:'idle',frames:6,frameRate:2},run:{folder:'run',frames:6,frameRate:14},jump:{folder:'jump',frames:4,frameRate:10},
-  attack1:{folder:'attack',frames:8,frameRate:30},attack2:{folder:'attack',frames:8,frameRate:28},attack3:{folder:'attack',frames:8,frameRate:24},
-  roll:{folder:'dodge',frames:8,frameRate:20},hit:{folder:'hurt',frames:7,frameRate:20},death:{folder:'death',frames:8,frameRate:8}
+const FALLBACK_SEQUENCES = Object.freeze({
+  idle:{folder:'idle',frames:6}, run:{folder:'run',frames:6}, jump:{folder:'jump',frames:4},
+  attack:{folder:'attack',frames:8}, roll:{folder:'dodge',frames:8}, hit:{folder:'hurt',frames:7}, death:{folder:'death',frames:8}
 });
 
-function textureKey(name,index){return `approved-r2-${name}-${String(index+1).padStart(2,'0')}`;}
+const PIXELLAB_GIFS = Object.freeze({
+  idle:`${PIXELLAB_ROOT}/idle.gif?v=pixellab-protagonist-1`,
+  run:`${PIXELLAB_ROOT}/run.gif?v=pixellab-protagonist-1`,
+  jump:`${PIXELLAB_ROOT}/jump.gif?v=pixellab-protagonist-1`,
+  fall:`${PIXELLAB_ROOT}/fall.gif?v=pixellab-protagonist-1`,
+  light_attack:`${PIXELLAB_ROOT}/light_attack.gif?v=pixellab-protagonist-1`,
+  heavy_attack:`${PIXELLAB_ROOT}/heavy_attack.gif?v=pixellab-protagonist-1`,
+  dash:`${PIXELLAB_ROOT}/dash.gif?v=pixellab-protagonist-1`,
+  hit:`${PIXELLAB_ROOT}/hit.gif?v=pixellab-protagonist-1`,
+  death:`${PIXELLAB_ROOT}/death.gif?v=pixellab-protagonist-1`
+});
+
+function fallbackKey(name,index){
+  return `fallback-${name}-${String(index+1).padStart(2,'0')}`;
+}
 
 export class GameSceneV05 extends GameScene {
   preload(){
-    for(const [name,sequence] of Object.entries(SEQUENCES)){
+    for(const [name,sequence] of Object.entries(FALLBACK_SEQUENCES)){
       for(let i=0;i<sequence.frames;i++){
         const file=`${sequence.folder}_${String(i+1).padStart(2,'0')}.png`;
-        this.load.image(textureKey(name,i),`${ASSET_ROOT}/${sequence.folder}/${file}?v=approved-r2`);
+        this.load.image(fallbackKey(name,i),`${FALLBACK_ASSET_ROOT}/${sequence.folder}/${file}?v=approved-r2`);
       }
     }
   }
 
   create(){
     super.create();
-    this.hitAnimStartsAt=-Infinity;this.hitAnimEndsAt=-Infinity;this.deathAnimStartsAt=-Infinity;
-    this.wasGrounded=true;this.landingAnimEndsAt=0;this.currentProtagonistKey='';
-    this.attackFlash.setAlpha(0);this.attackArc.setVisible(false);this.setProtagonistFrame('idle',0);
-    this.createPixelLabRunTest();
+    this.hitAnimStartsAt=-Infinity;
+    this.hitAnimEndsAt=-Infinity;
+    this.deathAnimStartsAt=-Infinity;
+    this.currentPixelLabState='';
+    this.attackFlash.setAlpha(0);
+    this.attackArc.setVisible(false);
+    this.createPixelLabProtagonist();
+    this.player.art.setVisible(false);
   }
 
-  createPixelLabRunTest(){
-    const makeRunElement=(src)=>{
-      const img=document.createElement('img');
-      img.src=src;img.alt='';img.draggable=false;
-      img.style.width=`${PIXELLAB_RUN_WIDTH_PX}px`;img.style.height='auto';img.style.display='block';
-      img.style.transform=`translateY(${PIXELLAB_RUN_VISUAL_SHIFT_Y}px)`;
-      img.style.imageRendering='pixelated';img.style.pointerEvents='none';img.style.userSelect='none';img.style.webkitUserDrag='none';
-      return this.add.dom(this.player.x,this.player.y+PIXELLAB_RUN_ANCHOR_Y,img)
-        .setOrigin(.5,1).setDepth(100).setVisible(false);
-    };
-    this.pixelLabRunEast=makeRunElement(PIXELLAB_RUN_EAST);
-    this.pixelLabRunWest=makeRunElement(PIXELLAB_RUN_WEST);
+  createPixelLabProtagonist(){
+    const img=document.createElement('img');
+    img.alt='';
+    img.draggable=false;
+    img.style.width=`${PIXELLAB_WIDTH_PX}px`;
+    img.style.height='auto';
+    img.style.display='block';
+    img.style.imageRendering='pixelated';
+    img.style.pointerEvents='none';
+    img.style.userSelect='none';
+    img.style.webkitUserDrag='none';
+    img.style.transformOrigin='50% 100%';
+
+    this.pixelLabImg=img;
+    this.pixelLabDom=this.add.dom(this.player.x,this.player.y+PIXELLAB_ANCHOR_Y,img)
+      .setOrigin(.5,1)
+      .setDepth(100);
+    this.setPixelLabState('idle',true);
   }
 
-  updatePixelLabRun(activeName){
-    const running=activeName==='run'&&!this.dead;
-    const x=this.player.x,y=this.player.y+PIXELLAB_RUN_ANCHOR_Y;
-    this.pixelLabRunEast?.setPosition(x,y).setVisible(running&&this.facing>0);
-    this.pixelLabRunWest?.setPosition(x,y).setVisible(running&&this.facing<0);
-    this.player.art.setVisible(!running);
+  setPixelLabState(name,force=false){
+    if(!this.pixelLabImg || !PIXELLAB_GIFS[name])return;
+    if(!force && this.currentPixelLabState===name)return;
+    this.currentPixelLabState=name;
+    this.pixelLabImg.src=PIXELLAB_GIFS[name];
   }
 
-  setProtagonistFrame(name,frameNumber){
-    const art=this.player?.art,sequence=SEQUENCES[name];if(!art||!sequence)return;
-    const frame=Math.max(0,Math.min(sequence.frames-1,Math.floor(frameNumber))),key=textureKey(name,frame);
-    if(key===this.currentProtagonistKey)return;art.setTexture(key);art.setOrigin(.5,1).setScale(ART_SCALE).setAlpha(1);this.currentProtagonistKey=key;
+  resolvePixelLabState(time){
+    const body=this.player?.body;
+    if(!body)return 'idle';
+    if(this.dead)return 'death';
+    if(time<this.hitAnimEndsAt)return 'hit';
+    if(this.state==='rolling')return 'dash';
+    if(this.state?.startsWith('attack-'))return this.comboStep===2?'heavy_attack':'light_attack';
+    if(!body.blocked.down)return body.velocity.y<0?'jump':'fall';
+    if(this.state==='running')return 'run';
+    return 'idle';
   }
-  loopFrame(name,time){const s=SEQUENCES[name];return Math.floor((time/1000)*s.frameRate)%s.frames;}
-  progressFrame(name,progress){const s=SEQUENCES[name],clamped=Math.max(0,Math.min(.999,progress));return Math.min(s.frames-1,Math.floor(clamped*s.frames));}
+
+  updatePixelLabProtagonist(time){
+    if(!this.pixelLabDom || !this.pixelLabImg)return;
+    const state=this.resolvePixelLabState(time);
+    this.setPixelLabState(state);
+    this.pixelLabDom.setPosition(this.player.x,this.player.y+PIXELLAB_ANCHOR_Y).setVisible(true);
+    this.pixelLabImg.style.transform=this.facing<0?'scaleX(-1)':'scaleX(1)';
+    this.player.art.setVisible(false);
+  }
 
   createPlayer(x,y){
-    const p=this.add.container(x,y);const shadow=this.add.ellipse(0,25,48,11,0x000000,.44);const aura=this.add.ellipse(0,4,42,74,0x69ff52,.018).setStrokeStyle(1,0x76ff42,.07);
-    const art=this.add.image(0,27,textureKey('idle',0)).setOrigin(.5,1).setScale(ART_SCALE).setAlpha(1);const weaponProxy=this.add.rectangle(16,0,54,8,0xffffff,0).setOrigin(.08,.5);
-    p.add([shadow,aura,art,weaponProxy]);p.art=art;p.aura=aura;p.weapon=weaponProxy;p.cape={setScale(){return this;}};this.physics.add.existing(p);
-    p.body.setSize(28,54).setOffset(-14,-30).setCollideWorldBounds(true).setMaxVelocity(TUNING.rollSpeed,TUNING.maxFallSpeed);return p;
+    const p=this.add.container(x,y);
+    const shadow=this.add.ellipse(0,25,48,11,0x000000,.44);
+    const aura=this.add.ellipse(0,4,42,74,0x69ff52,.018).setStrokeStyle(1,0x76ff42,.07);
+    const art=this.add.image(0,27,fallbackKey('idle',0)).setOrigin(.5,1).setScale(ART_SCALE).setAlpha(1);
+    const weaponProxy=this.add.rectangle(16,0,54,8,0xffffff,0).setOrigin(.08,.5);
+    p.add([shadow,aura,art,weaponProxy]);
+    p.art=art;
+    p.aura=aura;
+    p.weapon=weaponProxy;
+    p.cape={setScale(){return this;}};
+    this.physics.add.existing(p);
+    p.body.setSize(28,54).setOffset(-14,-30).setCollideWorldBounds(true).setMaxVelocity(TUNING.rollSpeed,TUNING.maxFallSpeed);
+    return p;
   }
 
-  startAttack(time,step=null){super.startAttack(time,step);const body=this.player?.body;if(body?.blocked?.down)body.velocity.x+=this.facing*(ATTACK_LUNGE[this.comboStep]||ATTACK_LUNGE[0]);}
+  startAttack(time,step=null){
+    super.startAttack(time,step);
+    const body=this.player?.body;
+    if(body?.blocked?.down){
+      body.velocity.x+=this.facing*(ATTACK_LUNGE[this.comboStep]||ATTACK_LUNGE[0]);
+    }
+  }
+
   damageEnemy(enemy,step){
-    if(!enemy?.alive)return;const hpBefore=enemy.hp;super.damageEnemy(enemy,step);if(enemy.hp>=hpBefore)return;
-    const body=this.player?.body;if(body)body.velocity.x-=this.facing*(ATTACK_RECOIL[step]||ATTACK_RECOIL[0]);
-    this.tweens.killTweensOf(enemy.sprite);const kickAngle=this.facing*(step===2?10:(step===1?7:5));
-    this.tweens.add({targets:enemy.sprite,angle:kickAngle,scaleY:step===2?.82:.9,duration:45,yoyo:true,ease:'Quad.easeOut',onComplete:()=>{if(enemy.alive){enemy.sprite.setAngle(0);enemy.sprite.scaleY=1;}}});
+    if(!enemy?.alive)return;
+    const hpBefore=enemy.hp;
+    super.damageEnemy(enemy,step);
+    if(enemy.hp>=hpBefore)return;
+    const body=this.player?.body;
+    if(body)body.velocity.x-=this.facing*(ATTACK_RECOIL[step]||ATTACK_RECOIL[0]);
     this.spawnImpactBurst(enemy.sprite.x,enemy.sprite.y-8,step);
   }
-  spawnImpactBurst(x,y,step){
-    const radius=step===2?24:(step===1?19:15),color=step===2?0xffe7a8:0xf4fbff;const ring=this.add.circle(x,y,5,0xffffff,0).setStrokeStyle(step===2?4:3,color,.95).setDepth(75);
-    this.tweens.add({targets:ring,scale:radius/5,alpha:0,duration:step===2?155:120,ease:'Quad.easeOut',onComplete:()=>ring.destroy()});
-    const slash=this.add.rectangle(x+this.facing*4,y,step===2?34:24,3,color,.9).setDepth(76).setAngle(step===1?22:-18*this.facing);
-    this.tweens.add({targets:slash,scaleX:1.45,alpha:0,duration:100+step*20,ease:'Quad.easeOut',onComplete:()=>slash.destroy()});
-  }
-  startRoll(time,b){this.lastRollAt=time;this.rollEndsAt=time+TUNING.rollDurationMs;this.state='rolling';b.setVelocityX(this.facing*TUNING.rollSpeed);this.tweens.killTweensOf(this.player);this.player.setAlpha(1);}
-  damagePlayer(time,enemy){const hpBefore=this.playerHp;super.damagePlayer(time,enemy);if(this.playerHp<hpBefore){this.tweens.killTweensOf(this.player);this.player.setAlpha(1);if(!this.dead){this.hitAnimStartsAt=time;this.hitAnimEndsAt=time+300;}}}
-  killPlayer(){this.deathAnimStartsAt=this.time.now;super.killPlayer();}
-  drawAttackArc(){this.attackArc.clear();this.attackArc.setVisible(false);}
 
-  updateProtagonistFrame(time){
-    const body=this.player?.body;if(!body)return'idle';const grounded=!!body.blocked.down;let name='idle',frame=0;
-    if(this.dead){name='death';const elapsed=Math.max(0,time-this.deathAnimStartsAt),duration=((SEQUENCES.death.frames-1)/SEQUENCES.death.frameRate)*1000;frame=this.progressFrame(name,Math.min(1,elapsed/Math.max(1,duration)));}
-    else if(time<this.hitAnimEndsAt){name='hit';frame=this.progressFrame(name,(time-this.hitAnimStartsAt)/300);}
-    else if(this.state==='rolling'){name='roll';const startedAt=this.rollEndsAt-TUNING.rollDurationMs;frame=this.progressFrame(name,(time-startedAt)/TUNING.rollDurationMs);}
-    else if(this.state?.startsWith('attack-')){name=['attack1','attack2','attack3'][this.comboStep]||'attack1';const duration=TUNING.attackDurationsMs[this.comboStep]||TUNING.attackDurationsMs[0];frame=this.progressFrame(name,(time-this.attackStartsAt)/duration);}
-    else if(!grounded){name='jump';frame=body.velocity.y<-260?0:(body.velocity.y<80?1:(body.velocity.y<420?2:3));}
-    else if(!this.wasGrounded){name='jump';this.landingAnimEndsAt=time+95;frame=3;}
-    else if(time<this.landingAnimEndsAt){name='jump';frame=3;}
-    else if(this.state==='running'){name='run';frame=this.loopFrame(name,time);}
-    else{name='idle';frame=this.loopFrame(name,time);}
-    this.setProtagonistFrame(name,frame);this.wasGrounded=grounded;return name;
+  spawnImpactBurst(x,y,step){
+    const radius=step===2?24:(step===1?19:15);
+    const color=step===2?0xffe7a8:0xf4fbff;
+    const ring=this.add.circle(x,y,5,0xffffff,0).setStrokeStyle(step===2?4:3,color,.95).setDepth(75);
+    this.tweens.add({targets:ring,scale:radius/5,alpha:0,duration:step===2?155:120,ease:'Quad.easeOut',onComplete:()=>ring.destroy()});
+  }
+
+  startRoll(time,b){
+    this.lastRollAt=time;
+    this.rollEndsAt=time+TUNING.rollDurationMs;
+    this.state='rolling';
+    b.setVelocityX(this.facing*TUNING.rollSpeed);
+    this.tweens.killTweensOf(this.player);
+    this.player.setAlpha(1);
+  }
+
+  damagePlayer(time,enemy){
+    const hpBefore=this.playerHp;
+    super.damagePlayer(time,enemy);
+    if(this.playerHp<hpBefore){
+      this.tweens.killTweensOf(this.player);
+      this.player.setAlpha(1);
+      if(!this.dead){
+        this.hitAnimStartsAt=time;
+        this.hitAnimEndsAt=time+360;
+        this.setPixelLabState('hit',true);
+      }
+    }
+  }
+
+  killPlayer(){
+    this.deathAnimStartsAt=this.time.now;
+    super.killPlayer();
+    this.setPixelLabState('death',true);
+  }
+
+  drawAttackArc(){
+    this.attackArc.clear();
+    this.attackArc.setVisible(false);
   }
 
   update(time,delta){
-    super.update(time,delta);if(!this.player?.art)return;const body=this.player.body,activeName=this.updateProtagonistFrame(time);this.updatePixelLabRun(activeName);
-    if(activeName==='idle'&&!this.dead){const phase=(time%BREATH_PERIOD_MS)/BREATH_PERIOD_MS*Math.PI*2,breath=(1-Math.cos(phase))*.5;this.player.art.setPosition(0,27-BREATH_Y_PX*breath).setOrigin(.5,1).setScale(ART_SCALE,ART_SCALE*(1+BREATH_SCALE_Y*breath)).setAlpha(1);}
-    else if(activeName!=='run')this.player.art.setPosition(0,27).setOrigin(.5,1).setScale(ART_SCALE).setAlpha(1);
+    super.update(time,delta);
+    if(!this.player)return;
+    this.updatePixelLabProtagonist(time);
+    const body=this.player.body;
     this.player.aura.setAlpha(.015+Math.min(.025,Math.abs(body?.velocity?.x||0)/10000));
-    if(this.debug?.text)this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.6.7 PIXELLAB FLOOR TUNE'));
+    if(this.debug?.text){
+      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.7.0 PIXELLAB PROTAGONIST'));
+    }
   }
 }
