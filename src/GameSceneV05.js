@@ -8,11 +8,11 @@ const BREATH_Y_PX = 0.8;
 const BREATH_SCALE_Y = 0.006;
 const ATTACK_LUNGE = [90,115,145];
 const ATTACK_RECOIL = [28,36,48];
-const PIXELLAB_RUN_EAST = './Running_v3_full_sprinting_east.gif?v=pixellab-run-test-3';
-const PIXELLAB_RUN_WEST = './Running_v3_full_sprinting_west.gif?v=pixellab-run-test-3';
+const PIXELLAB_RUN_EAST = './Running_v3_full_sprinting_east.gif?v=pixellab-run-test-4';
+const PIXELLAB_RUN_WEST = './Running_v3_full_sprinting_west.gif?v=pixellab-run-test-4';
 const PIXELLAB_RUN_WIDTH_PX = 192;
 const PIXELLAB_RUN_ANCHOR_Y = 27;
-const PIXELLAB_RUN_VISUAL_OFFSET_Y = 52;
+const PIXELLAB_RUN_ORIGIN_Y = 0.875;
 
 const SEQUENCES = Object.freeze({
   idle:{folder:'idle',frames:6,frameRate:2},run:{folder:'run',frames:6,frameRate:14},jump:{folder:'jump',frames:4,frameRate:10},
@@ -42,20 +42,12 @@ export class GameSceneV05 extends GameScene {
 
   createPixelLabRunTest(){
     const makeRunElement=(src)=>{
-      const wrapper=document.createElement('div');
-      wrapper.style.width=`${PIXELLAB_RUN_WIDTH_PX}px`;
-      wrapper.style.height=`${PIXELLAB_RUN_WIDTH_PX}px`;
-      wrapper.style.overflow='visible';
-      wrapper.style.pointerEvents='none';
-      wrapper.style.position='relative';
       const img=document.createElement('img');
       img.src=src;img.alt='';img.draggable=false;
-      img.style.width='100%';img.style.height='auto';img.style.display='block';
-      img.style.position='absolute';img.style.left='0';img.style.bottom=`-${PIXELLAB_RUN_VISUAL_OFFSET_Y}px`;
+      img.style.width=`${PIXELLAB_RUN_WIDTH_PX}px`;img.style.height='auto';img.style.display='block';
       img.style.imageRendering='pixelated';img.style.pointerEvents='none';img.style.userSelect='none';img.style.webkitUserDrag='none';
-      wrapper.appendChild(img);
-      return this.add.dom(this.player.x,this.player.y+PIXELLAB_RUN_ANCHOR_Y,wrapper)
-        .setOrigin(.5,1).setDepth(100).setVisible(false);
+      return this.add.dom(this.player.x,this.player.y+PIXELLAB_RUN_ANCHOR_Y,img)
+        .setOrigin(.5,PIXELLAB_RUN_ORIGIN_Y).setDepth(100).setVisible(false);
     };
     this.pixelLabRunEast=makeRunElement(PIXELLAB_RUN_EAST);
     this.pixelLabRunWest=makeRunElement(PIXELLAB_RUN_WEST);
@@ -122,6 +114,6 @@ export class GameSceneV05 extends GameScene {
     if(activeName==='idle'&&!this.dead){const phase=(time%BREATH_PERIOD_MS)/BREATH_PERIOD_MS*Math.PI*2,breath=(1-Math.cos(phase))*.5;this.player.art.setPosition(0,27-BREATH_Y_PX*breath).setOrigin(.5,1).setScale(ART_SCALE,ART_SCALE*(1+BREATH_SCALE_Y*breath)).setAlpha(1);}
     else if(activeName!=='run')this.player.art.setPosition(0,27).setOrigin(.5,1).setScale(ART_SCALE).setAlpha(1);
     this.player.aura.setAlpha(.015+Math.min(.025,Math.abs(body?.velocity?.x||0)/10000));
-    if(this.debug?.text)this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.6.4 PIXELLAB RUN FLOOR ALIGN'));
+    if(this.debug?.text)this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.6.5 PIXELLAB FOOT ANCHOR'));
   }
 }
