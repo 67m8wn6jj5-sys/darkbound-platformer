@@ -4,7 +4,7 @@ import { PIXELLAB_MANIFEST } from './pixellabManifest.js';
 import { ENEMY1_MANIFEST } from './enemy1Manifest.js';
 
 const FALLBACK_ASSET_ROOT='./assets/v05/production58',PIXELLAB_ROOT='./assets/v05/pixellab_protagonist',ENEMY1_ROOT='./assets/v05/enemy1';
-const ART_SCALE=.38,PIXELLAB_SCALE=1,PIXELLAB_ART_Y=72,ENEMY1_SCALE=1.4688,ENEMY1_ART_Y=58,ATTACK_LUNGE=[90,115,145],ATTACK_RECOIL=[28,36,48];
+const ART_SCALE=.38,PIXELLAB_SCALE=1,PIXELLAB_ART_Y=72,ENEMY1_SCALE=1.4688,ENEMY1_ART_Y=66,ATTACK_LUNGE=[90,115,145],ATTACK_RECOIL=[28,36,48];
 const VFX_GREEN=0x43ff57,VFX_GREEN_HOT=0xbfff8f,VFX_GREEN_CORE=0xf2ffe1;
 const LOOP_FPS=Object.freeze({idle:8,run:14}),ONESHOT_FPS=Object.freeze({jump:12,fall:12,light_attack:18,heavy_attack:16,dash:18,hit:16,death:10});
 const FALLBACK_SEQUENCES=Object.freeze({idle:{folder:'idle',frames:6},run:{folder:'run',frames:6},jump:{folder:'jump',frames:4},attack:{folder:'attack',frames:8},roll:{folder:'dodge',frames:8},hit:{folder:'hurt',frames:7},death:{folder:'death',frames:8}});
@@ -48,5 +48,5 @@ export class GameSceneV05 extends GameScene{
  damagePlayer(t,e){const hp=this.playerHp;super.damagePlayer(t,e);if(this.playerHp<hp){this.tweens.killTweensOf(this.player);this.player.setAlpha(1);if(!this.dead){this.hitAnimStartsAt=t;this.hitAnimEndsAt=t+420;this.setPixelState('hit',t,true);}}}
  killPlayer(){const now=this.time.now;this.deathAnimStartsAt=now;super.killPlayer();this.setPixelState('death',now,true);this.deathPanel.bg.setVisible(false);this.deathPanel.title.setVisible(false);const deathFrames=PIXELLAB_MANIFEST.death?.[this.facing<0?'west':'east']||13;const deathDurationMs=Math.ceil((deathFrames-1)/(ONESHOT_FPS.death||10)*1000)+220;this.time.delayedCall(deathDurationMs,()=>{if(!this.dead)return;this.deathPanel.bg.setSize(this.scale.width,this.scale.height).setVisible(true);this.deathPanel.title.setPosition(this.scale.width/2,this.scale.height/2).setVisible(true);});}
  drawAttackArc(){this.attackArc.clear();this.attackArc.setVisible(false);}
- update(t,d){super.update(t,d);if(!this.player)return;this.updatePixelArt(t);const b=this.player.body,g=!!b?.blocked?.down;if(this.state==='rolling'&&t>=this.nextDashTrailAt){this.spawnDashTrail();this.nextDashTrailAt=t+22;}if(g&&!this.fxWasGrounded&&Math.abs(b?.velocity?.y||0)<40)this.spawnLandingBurst();this.fxWasGrounded=g;const sg=Math.min(.13,Math.abs(b?.velocity?.x||0)/5000);this.player.aura.setAlpha(.065+sg).setScale(1+sg*2.1);if(this.debug?.text)this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.8.5 ENEMY +20 DEATH FIX'));}
+ update(t,d){super.update(t,d);if(!this.player)return;this.updatePixelArt(t);const b=this.player.body,g=!!b?.blocked?.down;if(this.state==='rolling'&&t>=this.nextDashTrailAt){this.spawnDashTrail();this.nextDashTrailAt=t+22;}if(g&&!this.fxWasGrounded&&Math.abs(b?.velocity?.y||0)<40)this.spawnLandingBurst();this.fxWasGrounded=g;const sg=Math.min(.13,Math.abs(b?.velocity?.x||0)/5000);this.player.aura.setAlpha(.065+sg).setScale(1+sg*2.1);if(this.debug?.text)this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.8.6 ENEMY FLOOR ALIGN'));}
 }
