@@ -1,4 +1,4 @@
-import { GameSceneV05 } from './GameSceneV05.js';
+import { GameSceneV06 } from './GameSceneV06.js';
 
 function showStartupError(error) {
   console.error(error);
@@ -36,7 +36,7 @@ try {
     dom: {
       createContainer: true
     },
-    scene: [GameSceneV05],
+    scene: [GameSceneV06],
     render: { antialias: true, pixelArt: false }
   };
 
