@@ -4,7 +4,7 @@ import { ENEMY1_MANIFEST } from './enemy1Manifest.js';
 const ENEMY_DEATH_FPS = 12;
 const ENEMY_DEATH_HOLD_MS = 180;
 const ENEMY_DEATH_FADE_MS = 240;
-const ENEMY_DEATH_Y_OFFSET = 10;
+const ENEMY_DEATH_Y_OFFSET = 18;
 
 export class GameSceneV06 extends GameSceneV05 {
   killEnemy(enemy) {
@@ -31,7 +31,6 @@ export class GameSceneV06 extends GameSceneV05 {
       enemy.deathEndsAt = now + Math.ceil(Math.max(0, frameCount - 1) / ENEMY_DEATH_FPS * 1000) + ENEMY_DEATH_HOLD_MS;
       enemy.deathFadeStarted = false;
     } else {
-      // Safe fallback if a future Enemy 1 asset pack omits death frames.
       enemy.deathEndsAt = now + ENEMY_DEATH_HOLD_MS;
       enemy.deathFadeStarted = false;
     }
@@ -65,7 +64,7 @@ export class GameSceneV06 extends GameSceneV05 {
   update(time, delta) {
     super.update(time, delta);
     if (this.debug?.text) {
-      this.debug.setText(this.debug.text.replace('DARKBOUND v0.9.0 COMBAT POLISH', 'DARKBOUND v0.9.2 ENEMY DEATH ALIGN'));
+      this.debug.setText(this.debug.text.replace('DARKBOUND v0.9.0 COMBAT POLISH', 'DARKBOUND v0.9.3 ENEMY DEATH ALIGN'));
     }
   }
 }
