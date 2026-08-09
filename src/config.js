@@ -17,7 +17,7 @@ export const TUNING = Object.freeze({
   rollCooldownMs: 680,
 
   comboResetMs: 650,
-  attackDurationsMs: [195, 210, 275],
+  attackDurationsMs: [195, 210, 540],
   attackActiveStartMs: [42, 48, 68],
   attackActiveEndMs: [122, 138, 190],
   attackRanges: [80, 88, 104],
