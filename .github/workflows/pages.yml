@@ -38,46 +38,70 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import shutil, re, json
-
-          root=Path('.pixellab-unpack')
-          out=Path('assets/v05/pixellab_protagonist')
-
-          action_markers={
-              'idle':'dark-fantasy-Idle',
-              'run':'dark-fantasy-Sprinting',
-              'jump':'dark-fantasy-Jump',
-              'fall':'dark-fantasy-Falling',
-              'light_attack':'dark-fantasy-Light_Sword_attack',
-              'heavy_attack':'dark-fantasy-Heavy_sword_attack',
-              'dash':'dark-fantasy-Dash',
-              'hit':'dark-fantasy-Hit_knocked_back',
-              'death':'dark-fantasy-Death',
-          }
-
+          root=Path('.pixellab-unpack'); out=Path('assets/v05/pixellab_protagonist')
+          action_markers={'idle':'dark-fantasy-Idle','run':'dark-fantasy-Sprinting','jump':'dark-fantasy-Jump','fall':'dark-fantasy-Falling','light_attack':'dark-fantasy-Light_Sword_attack','heavy_attack':'dark-fantasy-Heavy_sword_attack','dash':'dark-fantasy-Dash','hit':'dark-fantasy-Hit_knocked_back','death':'dark-fantasy-Death'}
           manifest={}
           for action,marker in action_markers.items():
               manifest[action]={}
               candidates=[p for p in root.rglob('frame_*.png') if '__MACOSX' not in p.parts and marker.lower() in str(p).lower()]
-              if not candidates:
-                  raise SystemExit(f'No frames found for {action}')
+              if not candidates: raise SystemExit(f'No frames found for {action}')
               for direction in ('east','west'):
                   frames=[p for p in candidates if direction in [part.lower() for part in p.parts]]
                   frames.sort(key=lambda p:int(re.search(r'frame_(\d+)',p.stem).group(1)))
-                  if not frames:
-                      raise SystemExit(f'No {direction} frames found for {action}')
-                  dest=out/action/direction
-                  dest.mkdir(parents=True,exist_ok=True)
-                  for i,p in enumerate(frames):
-                      shutil.copy2(p,dest/f'frame_{i:03d}.png')
+                  if not frames: raise SystemExit(f'No {direction} frames found for {action}')
+                  dest=out/action/direction; dest.mkdir(parents=True,exist_ok=True)
+                  for i,p in enumerate(frames): shutil.copy2(p,dest/f'frame_{i:03d}.png')
                   manifest[action][direction]=len(frames)
+          (out/'manifest.json').write_text(json.dumps(manifest,indent=2))
+          Path('src/pixellabManifest.js').write_text('export const PIXELLAB_MANIFEST = '+json.dumps(manifest,separators=(',',':'))+';\n')
+          print(json.dumps(manifest,indent=2))
+          PY
+
+      - name: Normalize Enemy 1 PixelLab frames
+        run: |
+          set -euo pipefail
+          rm -rf .enemy1-unpack assets/v05/enemy1
+          mkdir -p .enemy1-unpack assets/v05/enemy1
+          unzip -q -o 'Enemy 1.zip' -d .enemy1-unpack
+          python - <<'PY'
+          from pathlib import Path
+          import shutil, re, json
+
+          root=Path('.enemy1-unpack'); out=Path('assets/v05/enemy1')
+          frames=[p for p in root.rglob('frame_*.png') if '__MACOSX' not in p.parts]
+          if not frames:
+              raise SystemExit('Enemy 1.zip contains no frame_*.png files')
+
+          def classify(p):
+              s=str(p).lower().replace('-','_').replace(' ','_')
+              if 'lunge' in s or 'attack' in s: return 'lunge'
+              if 'death' in s or 'dead' in s: return 'death'
+              if 'hit' in s or 'knock' in s or 'hurt' in s: return 'hit'
+              if 'idle' in s or 'walk' in s: return 'patrol'
+              return None
+
+          manifest={}
+          for action in ('patrol','lunge','hit','death'):
+              picked=[p for p in frames if classify(p)==action]
+              if not picked: continue
+              manifest[action]={}
+              for direction in ('east','west'):
+                  directional=[p for p in picked if direction in [part.lower() for part in p.parts] or direction in p.name.lower()]
+                  directional.sort(key=lambda p:(str(p.parent),int(re.search(r'frame_(\d+)',p.stem).group(1))))
+                  if not directional: continue
+                  dest=out/action/direction; dest.mkdir(parents=True,exist_ok=True)
+                  for i,p in enumerate(directional): shutil.copy2(p,dest/f'frame_{i:03d}.png')
+                  manifest[action][direction]=len(directional)
+
+          for required in ('patrol','lunge'):
+              if required not in manifest: raise SystemExit(f'Could not identify Enemy 1 {required} frames. Found paths: {[str(p) for p in frames[:30]]}')
+              for direction in ('east','west'):
+                  if not manifest[required].get(direction): raise SystemExit(f'Enemy 1 {required} missing {direction} frames')
 
           (out/'manifest.json').write_text(json.dumps(manifest,indent=2))
-          module='export const PIXELLAB_MANIFEST = '+json.dumps(manifest,separators=(',',':'))+';\n'
-          Path('src/pixellabManifest.js').write_text(module)
+          Path('src/enemy1Manifest.js').write_text('export const ENEMY1_MANIFEST = '+json.dumps(manifest,separators=(',',':'))+';\n')
+          print('Enemy 1 manifest:')
           print(json.dumps(manifest,indent=2))
-          expected=set(action_markers)
-          assert set(manifest)==expected
-          assert all(manifest[a]['east']>0 and manifest[a]['west']>0 for a in expected)
           PY
 
       - name: Configure Pages
