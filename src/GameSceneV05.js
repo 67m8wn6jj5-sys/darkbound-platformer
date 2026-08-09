@@ -11,6 +11,7 @@ const ATTACK_RECOIL = [28,36,48];
 const PIXELLAB_RUN_EAST = './Running_v3_full_sprinting_east.gif?v=pixellab-run-test-1';
 const PIXELLAB_RUN_WEST = './Running_v3_full_sprinting_west.gif?v=pixellab-run-test-1';
 const PIXELLAB_RUN_WIDTH_PX = 192;
+const PIXELLAB_RUN_GROUND_Y = 54;
 
 const SEQUENCES = Object.freeze({
   idle:    { folder:'idle',   frames:6, frameRate:2  },
@@ -64,7 +65,7 @@ export class GameSceneV05 extends GameScene {
       img.style.pointerEvents='none';
       img.style.userSelect='none';
       img.style.webkitUserDrag='none';
-      return this.add.dom(this.player.x,this.player.y+27,img)
+      return this.add.dom(this.player.x,this.player.y+PIXELLAB_RUN_GROUND_Y,img)
         .setOrigin(.5,1)
         .setDepth(100)
         .setVisible(false);
@@ -77,7 +78,7 @@ export class GameSceneV05 extends GameScene {
   updatePixelLabRun(activeName){
     const running=activeName==='run' && !this.dead;
     const x=this.player.x;
-    const y=this.player.y+27;
+    const y=this.player.y+PIXELLAB_RUN_GROUND_Y;
 
     this.pixelLabRunEast?.setPosition(x,y).setVisible(running && this.facing>0);
     this.pixelLabRunWest?.setPosition(x,y).setVisible(running && this.facing<0);
@@ -285,7 +286,7 @@ export class GameSceneV05 extends GameScene {
     this.player.aura.setAlpha(.015+Math.min(.025,Math.abs(body?.velocity?.x||0)/10000));
 
     if(this.debug?.text){
-      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.6.1 PIXELLAB RUN TEST'));
+      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.6.2 PIXELLAB RUN ALIGN'));
     }
   }
 }
