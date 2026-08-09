@@ -6,11 +6,11 @@ const FALLBACK_ASSET_ROOT = './assets/v05/production58';
 const PIXELLAB_ROOT = './assets/v05/pixellab_protagonist';
 const ART_SCALE = 0.38;
 const PIXELLAB_SCALE = 1.0;
-// Visual-only offset. Physics/collision remain unchanged.
-// v0.7.1 at 118 was visibly too low; split the difference toward the original 27.
 const PIXELLAB_ART_Y = 72;
 const ATTACK_LUNGE = [90,115,145];
 const ATTACK_RECOIL = [28,36,48];
+const VFX_GREEN = 0x65ff72;
+const VFX_GREEN_HOT = 0xb8ff9a;
 
 const LOOP_FPS = Object.freeze({idle:8,run:14});
 const ONESHOT_FPS = Object.freeze({jump:12,fall:12,light_attack:18,heavy_attack:16,dash:18,hit:16,death:10});
@@ -64,6 +64,9 @@ export class GameSceneV05 extends GameScene {
       .setOrigin(.5,1)
       .setScale(PIXELLAB_SCALE)
       .setDepth(100);
+
+    this.fxWasGrounded=!!this.player?.body?.blocked?.down;
+    this.nextDashTrailAt=0;
   }
 
   createPlayer(x,y){
@@ -129,11 +132,93 @@ export class GameSceneV05 extends GameScene {
     this.player.art.setVisible(false);
   }
 
+  spawnGreenBurst(x,y,count=7,spreadX=42,spreadY=28,life=190){
+    for(let i=0;i<count;i++){
+      const size=Phaser.Math.Between(2,4);
+      const p=this.add.circle(x,y,size,i%3===0?VFX_GREEN_HOT:VFX_GREEN,.8)
+        .setDepth(110)
+        .setBlendMode(Phaser.BlendModes.ADD);
+      const dx=Phaser.Math.Between(-spreadX,spreadX);
+      const dy=Phaser.Math.Between(-spreadY,Math.max(4,Math.floor(spreadY*.35)));
+      this.tweens.add({
+        targets:p,
+        x:x+dx,
+        y:y+dy,
+        scale:0.15,
+        alpha:0,
+        duration:Phaser.Math.Between(Math.max(90,life-50),life+60),
+        ease:'Quad.easeOut',
+        onComplete:()=>p.destroy()
+      });
+    }
+  }
+
+  spawnSwordFlare(step=0){
+    const x=this.player.x+this.facing*(step===2?44:34);
+    const y=this.player.y+PIXELLAB_ART_Y-46;
+    const length=step===2?92:62;
+    const flare=this.add.rectangle(x,y,length,step===2?7:4,VFX_GREEN_HOT,step===2?.78:.58)
+      .setOrigin(this.facing>0?0:.99,.5)
+      .setAngle(this.facing>0?-24:24)
+      .setDepth(109)
+      .setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({
+      targets:flare,
+      scaleX:1.25,
+      scaleY:.25,
+      alpha:0,
+      duration:step===2?180:120,
+      ease:'Quad.easeOut',
+      onComplete:()=>flare.destroy()
+    });
+    this.spawnGreenBurst(x+this.facing*(step===2?48:30),y,step===2?10:5,step===2?40:26,22,step===2?230:150);
+  }
+
+  spawnDashTrail(){
+    const x=this.player.x-this.facing*20;
+    const y=this.player.y+PIXELLAB_ART_Y-34;
+    const streak=this.add.rectangle(x,y,Phaser.Math.Between(26,44),Phaser.Math.Between(2,4),VFX_GREEN,.28)
+      .setOrigin(this.facing>0?1:0,.5)
+      .setDepth(90)
+      .setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({
+      targets:streak,
+      x:x-this.facing*Phaser.Math.Between(18,36),
+      scaleX:1.4,
+      alpha:0,
+      duration:115,
+      ease:'Quad.easeOut',
+      onComplete:()=>streak.destroy()
+    });
+  }
+
+  spawnLandingBurst(){
+    const x=this.player.x;
+    const y=this.player.y+28;
+    for(const dir of [-1,1]){
+      const streak=this.add.rectangle(x,y,22,2,VFX_GREEN,.42)
+        .setOrigin(dir<0?1:0,.5)
+        .setDepth(95)
+        .setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({
+        targets:streak,
+        x:x+dir*32,
+        scaleX:1.35,
+        alpha:0,
+        duration:150,
+        ease:'Quad.easeOut',
+        onComplete:()=>streak.destroy()
+      });
+    }
+    this.spawnGreenBurst(x,y-2,5,28,12,150);
+  }
+
   startAttack(time,step=null){
     super.startAttack(time,step);
     const body=this.player?.body;
     if(body?.blocked?.down)body.velocity.x+=this.facing*(ATTACK_LUNGE[this.comboStep]||ATTACK_LUNGE[0]);
     this.setPixelState(this.comboStep===2?'heavy_attack':'light_attack',time,true);
+    this.spawnSwordFlare(this.comboStep);
   }
 
   damageEnemy(enemy,step){
@@ -147,10 +232,13 @@ export class GameSceneV05 extends GameScene {
   }
 
   spawnImpactBurst(x,y,step){
-    const radius=step===2?24:(step===1?19:15);
-    const color=step===2?0xffe7a8:0xf4fbff;
-    const ring=this.add.circle(x,y,5,0xffffff,0).setStrokeStyle(step===2?4:3,color,.95).setDepth(75);
-    this.tweens.add({targets:ring,scale:radius/5,alpha:0,duration:step===2?155:120,ease:'Quad.easeOut',onComplete:()=>ring.destroy()});
+    const radius=step===2?26:(step===1?21:17);
+    const ring=this.add.circle(x,y,5,0xffffff,0)
+      .setStrokeStyle(step===2?4:3,VFX_GREEN_HOT,.9)
+      .setDepth(112)
+      .setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({targets:ring,scale:radius/5,alpha:0,duration:step===2?170:125,ease:'Quad.easeOut',onComplete:()=>ring.destroy()});
+    this.spawnGreenBurst(x,y,step===2?12:7,step===2?48:34,step===2?36:25,step===2?250:180);
   }
 
   startRoll(time,b){
@@ -161,6 +249,8 @@ export class GameSceneV05 extends GameScene {
     this.tweens.killTweensOf(this.player);
     this.player.setAlpha(1);
     this.setPixelState('dash',time,true);
+    this.spawnGreenBurst(this.player.x,this.player.y+18,5,24,14,140);
+    this.nextDashTrailAt=time;
   }
 
   damagePlayer(time,enemy){
@@ -193,9 +283,21 @@ export class GameSceneV05 extends GameScene {
     if(!this.player)return;
     this.updatePixelArt(time);
     const body=this.player.body;
-    this.player.aura.setAlpha(.015+Math.min(.025,Math.abs(body?.velocity?.x||0)/10000));
+    const grounded=!!body?.blocked?.down;
+
+    if(this.state==='rolling' && time>=this.nextDashTrailAt){
+      this.spawnDashTrail();
+      this.nextDashTrailAt=time+42;
+    }
+
+    if(grounded && !this.fxWasGrounded && Math.abs(body?.velocity?.y||0)<40){
+      this.spawnLandingBurst();
+    }
+    this.fxWasGrounded=grounded;
+
+    this.player.aura.setAlpha(.018+Math.min(.035,Math.abs(body?.velocity?.x||0)/9000));
     if(this.debug?.text){
-      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.7.2 PIXELLAB FLOOR TUNE'));
+      this.debug.setText(this.debug.text.replace('DARKBOUND v0.4.0','DARKBOUND v0.7.4 GREEN VFX'));
     }
   }
 }
