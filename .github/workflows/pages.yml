@@ -98,6 +98,54 @@ jobs:
               if required not in manifest: raise SystemExit(f'Could not identify Enemy 1 {required} frames')
           (out/'manifest.json').write_text(json.dumps(manifest,indent=2))
           Path('src/enemy1Manifest.js').write_text('export const ENEMY1_MANIFEST = '+json.dumps(manifest,separators=(',',':'))+';\n')
+          PY
+
+      - name: Normalize Enemy 2 troll and sling rock
+        run: |
+          set -euo pipefail
+          rm -rf .enemy2-unpack assets/v05/enemy2
+          mkdir -p .enemy2-unpack assets/v05/enemy2
+          unzip -q -o 'Enemy 2 .zip' -d .enemy2-unpack
+          python - <<'PY'
+          from pathlib import Path
+          import shutil, re, json
+          root=Path('.enemy2-unpack'); out=Path('assets/v05/enemy2')
+          pngs=[p for p in root.rglob('*.png') if '__MACOSX' not in p.parts]
+          if not pngs: raise SystemExit('Enemy 2 archive contains no PNG assets')
+          def norm(p): return str(p).lower().replace('-','_').replace(' ','_')
+          def action(p):
+              s=norm(p)
+              if 'rock' in s or 'stone' in s or 'projectile' in s: return 'rock'
+              if 'death' in s or 'dead' in s: return 'death'
+              if 'hit' in s or 'hurt' in s or 'knock' in s: return 'hit'
+              if 'sling' in s or 'throw' in s or 'attack' in s or 'shoot' in s: return 'attack'
+              if 'idle' in s or 'walk' in s or 'run' in s: return 'patrol'
+              return None
+          manifest={}
+          rocks=[p for p in pngs if action(p)=='rock']
+          if not rocks: raise SystemExit('Could not identify Enemy 2 rock asset')
+          rock=rocks[0]; (out/'rock').mkdir(parents=True,exist_ok=True); shutil.copy2(rock,out/'rock/rock.png')
+          manifest['rock']='rock/rock.png'
+          for a in ('patrol','attack','hit','death'):
+              picked=[p for p in pngs if action(p)==a]
+              if not picked: continue
+              manifest[a]={}; bydir={}
+              for d in ('east','west'):
+                  seq=[p for p in picked if d in norm(p)]
+                  seq.sort(key=lambda p:(str(p.parent), int(re.search(r'(\d+)',p.stem).group(1)) if re.search(r'(\d+)',p.stem) else 0))
+                  bydir[d]=seq
+              if not bydir['east'] and not bydir['west']:
+                  bydir['east']=picked; bydir['east'].sort(key=str)
+              if not bydir['east']: bydir['east']=bydir['west']; manifest[a]['mirrorEast']=True
+              if not bydir['west']: bydir['west']=bydir['east']; manifest[a]['mirrorWest']=True
+              for d in ('east','west'):
+                  dest=out/a/d; dest.mkdir(parents=True,exist_ok=True)
+                  for i,p in enumerate(bydir[d]): shutil.copy2(p,dest/f'frame_{i:03d}.png')
+                  manifest[a][d]=len(bydir[d])
+          for required in ('patrol','attack'):
+              if required not in manifest: raise SystemExit(f'Could not identify Enemy 2 {required} frames; files: {[str(p) for p in pngs]}')
+          (out/'manifest.json').write_text(json.dumps(manifest,indent=2))
+          Path('src/enemy2Manifest.js').write_text('export const ENEMY2_MANIFEST = '+json.dumps(manifest,separators=(',',':'))+';\n')
           print(json.dumps(manifest,indent=2))
           PY
 
