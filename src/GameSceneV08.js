@@ -12,6 +12,10 @@ const TROLL_MAX_RANGE=610;
 const TROLL_SPEED=46;
 const TROLL_ATTACK_FPS=12;
 const TROLL_WALK_FPS=9;
+const TROLL_HIT_FPS=12;
+const TROLL_DEATH_FPS=10;
+const TROLL_DEATH_HOLD_MS=180;
+const TROLL_DEATH_FADE_MS=240;
 const TROLL_COOLDOWN=1450;
 const ROCK_SIZE=30;
 
@@ -24,10 +28,10 @@ export class GameSceneV08 extends GameSceneV07 {
       if(action==='rock'||typeof meta!=='object')continue;
       for(const direction of ['east','west']){
         const count=meta?.[direction]||0;
-        for(let i=0;i<count;i++)this.load.image(trollKey(action,direction,i),`${ENEMY2_ROOT}/${action}/${direction}/frame_${String(i).padStart(3,'0')}.png?v=enemy2-1`);
+        for(let i=0;i<count;i++)this.load.image(trollKey(action,direction,i),`${ENEMY2_ROOT}/${action}/${direction}/frame_${String(i).padStart(3,'0')}.png?v=enemy2-2`);
       }
     }
-    this.load.image('enemy2-rock',`${ENEMY2_ROOT}/${ENEMY2_MANIFEST.rock||'rock/rock.png'}?v=enemy2-1`);
+    this.load.image('enemy2-rock',`${ENEMY2_ROOT}/${ENEMY2_MANIFEST.rock||'rock/rock.png'}?v=enemy2-2`);
   }
 
   create(){
@@ -51,7 +55,7 @@ export class GameSceneV08 extends GameSceneV07 {
     const tell=this.add.circle(x,y-10,28,0xe8b45a,.06).setStrokeStyle(2,0xffd27a,.75).setVisible(false).setDepth(45);
     const hpBarBg=this.add.rectangle(x,y-64,38,5,0x140a12,.8).setDepth(44);
     const hpBar=this.add.rectangle(x-18,y-64,36,3,0xe6b55f,1).setOrigin(0,.5).setDepth(45);
-    return {id:`enemy2-${x}`,type:'enemy2',sprite,tell,hpBarBg,hpBar,hp:TROLL_HP,maxHp:TROLL_HP,alive:true,state:'dormant',stateEndsAt:0,nextAttackAt:0,facing:-1,animState:'patrol',animStartedAt:this.time.now,rockReleased:false};
+    return {id:`enemy2-${x}`,type:'enemy2',sprite,tell,hpBarBg,hpBar,hp:TROLL_HP,maxHp:TROLL_HP,alive:true,state:'dormant',stateEndsAt:0,nextAttackAt:0,facing:-1,animState:'patrol',animStartedAt:this.time.now,rockReleased:false,deathFadeStarted:false};
   }
 
   setTrollAnim(enemy,action,time,force=false){
@@ -60,11 +64,19 @@ export class GameSceneV08 extends GameSceneV07 {
     enemy.animState=action; enemy.animStartedAt=time;
   }
 
+  trollAnimFps(action){
+    if(action==='attack')return TROLL_ATTACK_FPS;
+    if(action==='hit')return TROLL_HIT_FPS;
+    if(action==='death')return TROLL_DEATH_FPS;
+    return TROLL_WALK_FPS;
+  }
+
   updateTrollArt(enemy,time){
     const action=enemy.animState||'patrol',direction=enemy.facing<0?'west':'east',meta=ENEMY2_MANIFEST[action];
     if(!meta)return;
-    const count=meta[direction]||1,elapsed=Math.max(0,time-(enemy.animStartedAt||0)),fps=action==='attack'?TROLL_ATTACK_FPS:TROLL_WALK_FPS;
-    const frame=action==='attack'?Math.min(count-1,Math.floor(elapsed/1000*fps)):Math.floor(elapsed/1000*fps)%count;
+    const count=meta[direction]||1,elapsed=Math.max(0,time-(enemy.animStartedAt||0)),fps=this.trollAnimFps(action);
+    const looping=action==='patrol';
+    const frame=looping?Math.floor(elapsed/1000*fps)%count:Math.min(count-1,Math.floor(elapsed/1000*fps));
     enemy.sprite.art.setTexture(trollKey(action,direction,frame)).setPosition(0,TROLL_ART_Y).setScale(TROLL_SCALE).setOrigin(.5,1)
       .setFlipX((direction==='west'&&!!meta.mirrorWest)||(direction==='east'&&!!meta.mirrorEast));
   }
@@ -84,6 +96,14 @@ export class GameSceneV08 extends GameSceneV07 {
   }
 
   updateEnemy2(enemy,time){
+    if(enemy.state==='dead'){
+      if(ENEMY2_MANIFEST.death)this.updateTrollArt(enemy,time);
+      if(!enemy.deathFadeStarted&&time>=(enemy.deathEndsAt||0)){
+        enemy.deathFadeStarted=true;
+        this.tweens.add({targets:enemy.sprite,alpha:0,duration:TROLL_DEATH_FADE_MS,ease:'Quad.easeOut',onComplete:()=>enemy.sprite.setVisible(false)});
+      }
+      return;
+    }
     if(!enemy.alive||this.dead)return;
     const body=enemy.sprite.body,dx=this.player.x-enemy.sprite.x,dist=Math.abs(dx);
     enemy.facing=dx<0?-1:1;
@@ -96,8 +116,10 @@ export class GameSceneV08 extends GameSceneV07 {
     }
     if(enemy.state==='stagger'){
       body.velocity.x*=.78;
-      if(time>=enemy.stateEndsAt){enemy.state='ranged';enemy.nextAttackAt=time+450;}
-      this.setTrollAnim(enemy,'patrol',time);this.updateTrollArt(enemy,time);return;
+      if(ENEMY2_MANIFEST.hit)this.setTrollAnim(enemy,'hit',enemy.animStartedAt);
+      else this.setTrollAnim(enemy,'patrol',time);
+      if(time>=enemy.stateEndsAt){enemy.state='ranged';enemy.nextAttackAt=time+450;this.setTrollAnim(enemy,'patrol',time,true);}
+      this.updateTrollArt(enemy,time);return;
     }
     if(enemy.state==='attack'){
       body.setVelocityX(0);this.setTrollAnim(enemy,'attack',enemy.animStartedAt);
@@ -125,7 +147,14 @@ export class GameSceneV08 extends GameSceneV07 {
   damageEnemy(enemy,step){
     if(enemy?.type!=='enemy2'){super.damageEnemy(enemy,step);return;}
     if(!enemy.alive)return;
-    enemy.hp=Math.max(0,enemy.hp-1);enemy.state='stagger';enemy.stateEndsAt=this.time.now+150+step*45;enemy.tell.setVisible(false);
+    enemy.hp=Math.max(0,enemy.hp-1);
+    const now=this.time.now;
+    enemy.state='stagger';enemy.tell.setVisible(false);
+    const direction=enemy.facing<0?'west':'east';
+    const hitFrames=ENEMY2_MANIFEST.hit?.[direction]||0;
+    const hitDuration=hitFrames?Math.ceil((hitFrames-1)/TROLL_HIT_FPS*1000)+90:150+step*45;
+    enemy.stateEndsAt=now+hitDuration;
+    if(hitFrames)this.setTrollAnim(enemy,'hit',now,true);
     enemy.sprite.body.setVelocity(this.facing*TUNING.attackKnockback[step]*.72,step===2?-105:-48);
     this.spawnImpactBurst(enemy.sprite.x,enemy.sprite.y-10,step);this.spawnCombatShockwave(enemy.sprite.x-this.facing*6,enemy.sprite.y-20,step);
     this.cameras.main.shake(step===2?90:45,step===2?.006:.003);this.applyHitStop(TUNING.hitStopMs[step]);
@@ -135,14 +164,28 @@ export class GameSceneV08 extends GameSceneV07 {
   killEnemy(enemy){
     if(enemy?.type!=='enemy2'){super.killEnemy(enemy);return;}
     if(!enemy.alive)return;
+    const now=this.time.now;
     enemy.alive=false;enemy.state='dead';enemy.tell.setVisible(false);enemy.hpBar.setVisible(false);enemy.hpBarBg.setVisible(false);
-    enemy.sprite.body.setVelocity(0,0);enemy.sprite.body.enable=false;enemy.deathEndsAt=this.time.now+360;
-    this.tweens.add({targets:enemy.sprite,alpha:0,duration:340,ease:'Quad.easeOut',onComplete:()=>enemy.sprite.setVisible(false)});
+    this.tweens.killTweensOf(enemy.sprite);
+    enemy.sprite.setAlpha(1).setVisible(true);
+    enemy.sprite.body.setVelocity(0,0);enemy.sprite.body.enable=false;
+    const direction=enemy.facing<0?'west':'east';
+    const deathFrames=ENEMY2_MANIFEST.death?.[direction]||0;
+    if(deathFrames){
+      this.setTrollAnim(enemy,'death',now,true);
+      enemy.deathEndsAt=now+Math.ceil((deathFrames-1)/TROLL_DEATH_FPS*1000)+TROLL_DEATH_HOLD_MS;
+      enemy.deathFadeStarted=false;
+    }else{
+      enemy.deathEndsAt=now+360;
+      enemy.deathFadeStarted=true;
+      this.tweens.add({targets:enemy.sprite,alpha:0,duration:340,ease:'Quad.easeOut',onComplete:()=>enemy.sprite.setVisible(false)});
+    }
+    this.updateHud();
   }
 
   update(time,delta){
     super.update(time,delta);
     this.enemy2Projectiles=this.enemy2Projectiles?.filter(p=>p.alive)||[];
-    if(this.debug?.text)this.debug.setText(this.debug.text.replace('DARKBOUND v0.10.0 ENCOUNTER ROOM','DARKBOUND v0.11.0 ENEMY 2 TROLL'));
+    if(this.debug?.text)this.debug.setText(this.debug.text.replace('DARKBOUND v0.10.0 ENCOUNTER ROOM','DARKBOUND v0.11.1 ENEMY 2 HIT DEATH').replace('DARKBOUND v0.11.0 ENEMY 2 TROLL','DARKBOUND v0.11.1 ENEMY 2 HIT DEATH'));
   }
 }
