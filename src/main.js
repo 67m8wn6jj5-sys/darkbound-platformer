@@ -16,11 +16,6 @@ function isPortraitPhone() {
   return window.matchMedia?.('(orientation: portrait) and (max-width: 900px)')?.matches === true;
 }
 
-function isIOS() {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-}
-
 function startGame() {
   if (game || isPortraitPhone()) return;
   if (!window.Phaser) {
@@ -29,17 +24,14 @@ function startGame() {
   }
 
   const config = {
-    type: isIOS() ? Phaser.CANVAS : Phaser.AUTO,
+    type: Phaser.AUTO,
     parent: 'game',
     backgroundColor: '#070910',
-    width: 1280,
-    height: 720,
     scale: {
-      mode: Phaser.Scale.FIT,
+      mode: Phaser.Scale.RESIZE,
       autoCenter: Phaser.Scale.CENTER_BOTH,
       width: 1280,
-      height: 720,
-      expandParent: true
+      height: 720
     },
     physics: {
       default: 'arcade',
@@ -51,11 +43,7 @@ function startGame() {
     },
     dom: { createContainer: true },
     scene: [GameSceneV09],
-    render: {
-      antialias: true,
-      pixelArt: false,
-      clearBeforeRender: true
-    }
+    render: { antialias: true, pixelArt: false }
   };
 
   game = new Phaser.Game(config);
@@ -68,18 +56,10 @@ function startGame() {
 function handleViewportChange() {
   clearTimeout(startTimer);
   startTimer = setTimeout(() => {
-    if (isPortraitPhone()) {
-      if (game) {
-        game.destroy(true);
-        game = null;
-        document.documentElement.dataset.gameReady = 'false';
-      }
-      return;
-    }
-
+    if (isPortraitPhone()) return;
     if (!game) startGame();
     else game.scale.refresh();
-  }, 350);
+  }, 220);
 }
 
 window.addEventListener('error', event => showStartupError(event.error || event.message));
