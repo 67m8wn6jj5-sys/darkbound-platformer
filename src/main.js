@@ -1,5 +1,8 @@
 import { GameSceneV09 } from './GameSceneV09.js';
 
+let game = null;
+let startTimer = null;
+
 function showStartupError(error) {
   console.error(error);
   const panel = document.getElementById('startup-error');
@@ -9,21 +12,52 @@ function showStartupError(error) {
   if (message) message.textContent = error?.message || String(error);
 }
 
-window.addEventListener('error', event => showStartupError(event.error || event.message));
-window.addEventListener('unhandledrejection', event => showStartupError(event.reason));
+function isPortraitPhone() {
+  return window.matchMedia?.('(orientation: portrait) and (max-width: 900px)')?.matches === true;
+}
 
-try {
-  if (!window.Phaser) throw new Error('Phaser failed to load. Refresh the page and check your connection.');
+function viewportSize() {
+  const viewport = window.visualViewport;
+  return {
+    width: Math.max(1, Math.round(viewport?.width || window.innerWidth || document.documentElement.clientWidth || 1)),
+    height: Math.max(1, Math.round(viewport?.height || window.innerHeight || document.documentElement.clientHeight || 1))
+  };
+}
 
+function resizeGame() {
+  if (!game || isPortraitPhone()) return;
+  const { width, height } = viewportSize();
+  const shell = document.getElementById('game-shell');
+  const parent = document.getElementById('game');
+  if (shell) shell.style.height = `${height}px`;
+  if (parent) parent.style.height = `${height}px`;
+  game.scale.resize(width, height);
+  game.scale.refresh();
+  game.renderer?.resize?.(width, height);
+  for (const scene of game.scene.getScenes(true)) {
+    scene.cameras?.main?.setSize(width, height);
+  }
+}
+
+function startGame() {
+  if (game || isPortraitPhone()) return;
+  if (!window.Phaser) {
+    showStartupError(new Error('Phaser failed to load. Refresh the page and check your connection.'));
+    return;
+  }
+
+  const { width, height } = viewportSize();
   const config = {
     type: Phaser.AUTO,
     parent: 'game',
     backgroundColor: '#070910',
+    width,
+    height,
     scale: {
       mode: Phaser.Scale.RESIZE,
       autoCenter: Phaser.Scale.CENTER_BOTH,
-      width: 1280,
-      height: 720
+      width,
+      height
     },
     physics: {
       default: 'arcade',
@@ -33,52 +67,42 @@ try {
       gamepad: typeof navigator.getGamepads === 'function',
       activePointers: 5
     },
-    dom: {
-      createContainer: true
-    },
+    dom: { createContainer: true },
     scene: [GameSceneV09],
     render: { antialias: true, pixelArt: false }
   };
 
-  const game = new Phaser.Game(config);
-
-  // iOS Safari/PWA can report a transient 0-sized viewport while rotating.
-  // Wait for the new viewport to settle, then explicitly resize and redraw
-  // instead of leaving Phaser's RESIZE canvas black.
-  let orientationResizeTimer = null;
-  const recoverViewport = () => {
-    clearTimeout(orientationResizeTimer);
-    orientationResizeTimer = setTimeout(() => {
-      const viewport = window.visualViewport;
-      const width = Math.max(1, Math.round(viewport?.width || window.innerWidth || document.documentElement.clientWidth || 1));
-      const height = Math.max(1, Math.round(viewport?.height || window.innerHeight || document.documentElement.clientHeight || 1));
-      const shell = document.getElementById('game-shell');
-      const parent = document.getElementById('game');
-      if (shell) shell.style.height = `${height}px`;
-      if (parent) parent.style.height = `${height}px`;
-      game.scale.resize(width, height);
-      game.scale.refresh();
-      const scene = game.scene.getScenes(true)[0];
-      if (scene?.cameras?.main) {
-        scene.cameras.main.setSize(width, height);
-        scene.cameras.main.dirty = true;
-      }
-      game.renderer?.resize?.(width, height);
-    }, 180);
-  };
-
-  window.addEventListener('orientationchange', recoverViewport, { passive: true });
-  window.addEventListener('resize', recoverViewport, { passive: true });
-  window.visualViewport?.addEventListener('resize', recoverViewport, { passive: true });
-  window.visualViewport?.addEventListener('scroll', recoverViewport, { passive: true });
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) recoverViewport();
-  });
-
+  game = new Phaser.Game(config);
   game.events.once('ready', () => {
     document.documentElement.dataset.gameReady = 'true';
-    recoverViewport();
+    requestAnimationFrame(() => requestAnimationFrame(resizeGame));
   });
+}
+
+function handleViewportChange() {
+  clearTimeout(startTimer);
+  startTimer = setTimeout(() => {
+    if (isPortraitPhone()) return;
+    if (!game) startGame();
+    else resizeGame();
+  }, 280);
+}
+
+window.addEventListener('error', event => showStartupError(event.error || event.message));
+window.addEventListener('unhandledrejection', event => showStartupError(event.reason));
+window.addEventListener('orientationchange', handleViewportChange, { passive: true });
+window.addEventListener('resize', handleViewportChange, { passive: true });
+window.visualViewport?.addEventListener('resize', handleViewportChange, { passive: true });
+window.visualViewport?.addEventListener('scroll', handleViewportChange, { passive: true });
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) handleViewportChange();
+});
+
+try {
+  // Critical iPhone behavior: never create the WebGL/Phaser canvas while the
+  // rotate-to-landscape overlay is active. Starting fresh after landscape is
+  // established avoids the black canvas state seen after portrait startup.
+  if (!isPortraitPhone()) startGame();
 } catch (error) {
   showStartupError(error);
 }
