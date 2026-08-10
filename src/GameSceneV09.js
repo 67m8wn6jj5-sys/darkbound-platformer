@@ -14,20 +14,30 @@ export class GameSceneV09 extends GameSceneV08 {
   create(){
     super.create();
 
-    // Retire the single-room prototype gates. The multi-room controller below owns progression now.
+    // The multi-room controller owns progression now, but inherited enemy AI in
+    // V07/V08 still checks roomEncounter.state. Keep that compatibility state
+    // in combat so active room enemies are allowed to run their normal AI.
+    if(this.roomEncounter){
+      this.roomEncounter.state='combat';
+      this.roomEncounter.enemies=[];
+      this.roomEncounter.clearPending=false;
+    }
+
+    // Retire the single-room prototype gates.
     for(const gate of Object.values(this.roomGates||{}))gate?.destroy();
     this.roomGates={};
 
+    // Production screen: hide the old engineering/debug readout.
+    this.debug?.setVisible(false);
+
     const enemy1a=this.enemies.find(e=>e.type==='enemy1');
-    const enemy1b=this.enemies.find((e,i)=>e.type==='enemy1'&&e!==enemy1a);
+    const enemy1b=this.enemies.find(e=>e.type==='enemy1'&&e!==enemy1a);
     const troll1=this.enemies.find(e=>e.type==='enemy2');
 
-    // Reposition the existing roster into the first two rooms.
     this.placeEnemy(enemy1a,760,560);
     this.placeEnemy(enemy1b,1330,560);
     this.placeEnemy(troll1,1570,560);
 
-    // Final-room roster.
     const enemy1c=this.createEnemy(2070,560,'blade');
     const troll2=this.createEnemy2(2240,560);
     const troll3=this.createEnemy2(2410,560);
@@ -91,7 +101,6 @@ export class GameSceneV09 extends GameSceneV08 {
   }
 
   refreshProgressionGates(){
-    // Exterior entrance stays open until a room starts; the far-right exit opens only after room 3.
     for(const x of this.progressionGates.keys())this.setGateLocked(x,false);
     if(this.activeRoomIndex>=0){
       const room=this.rooms[this.activeRoomIndex];
@@ -122,9 +131,11 @@ export class GameSceneV09 extends GameSceneV08 {
     room.state='combat';
     room.activatedAt=time;
     this.activeRoomIndex=index;
+
     for(const enemy of room.enemies){
       if(!enemy?.alive)continue;
       this.setEnemyDormant(enemy,false);
+      if(enemy.sprite?.body)enemy.sprite.body.enable=true;
       enemy.nextAttackAt=time+350;
       if(enemy.type==='enemy2'){
         enemy.state='ranged';
@@ -134,6 +145,7 @@ export class GameSceneV09 extends GameSceneV08 {
         this.setEnemyAnim(enemy,'patrol',time,true);
       }
     }
+
     this.refreshProgressionGates();
     this.showRoomBanner(`${room.label} SEALED`,ROOM_BANNER_MS);
     this.cameras.main.shake(90,.0035);
@@ -185,15 +197,13 @@ export class GameSceneV09 extends GameSceneV08 {
     const latestDeathEnd=Math.max(time,...room.enemies.map(enemy=>enemy.deathEndsAt||time));
     const delay=Math.max(0,latestDeathEnd-time)+140;
     this.time.delayedCall(delay,()=>{
-      if(this.rooms?.[this.activeRoomIndex]===room&&room.state==='combat')this.clearRoom(this.activeRoomIndex,this.time.now);
-      else if(room.state==='combat'){
-        const idx=this.rooms.indexOf(room);
-        if(idx>=0)this.clearRoom(idx,this.time.now);
-      }
+      const idx=this.rooms.indexOf(room);
+      if(idx>=0&&room.state==='combat')this.clearRoom(idx,this.time.now);
     });
   }
 
-  // Disable the single-room controller inherited from V07.
+  // Disable only the old single-room progression controller. Its combat AI is
+  // intentionally left enabled via roomEncounter.state='combat'.
   updateRoomEncounter(){ }
 
   updateEnemy(enemy,time,index){
@@ -216,11 +226,5 @@ export class GameSceneV09 extends GameSceneV08 {
     super.update(time,delta);
     if(!this.player)return;
     this.updateMultiRoomProgression(time);
-    if(this.debug?.text){
-      const active=this.activeRoomIndex>=0?this.activeRoomIndex+1:'none';
-      this.debug.setText(this.debug.text
-        .replace('DARKBOUND v0.11.1 ENEMY 2 HIT DEATH','DARKBOUND v0.12.0 MULTI ROOM RUN')
-        .replace('DARKBOUND v0.11.0 ENEMY 2 TROLL','DARKBOUND v0.12.0 MULTI ROOM RUN')+`\nProgress: ${this.completedRooms}/3 | Active room: ${active}`);
-    }
   }
 }
