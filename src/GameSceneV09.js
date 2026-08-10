@@ -49,7 +49,7 @@ export class GameSceneV09 extends GameSceneV08 {
     this.completedRooms=0;
     this.runComplete=false;
 
-    this.rooms.forEach(room=>room.enemies.forEach(enemy=>this.setEnemyDormant(enemy,true));
+    this.rooms.forEach(room=>room.enemies.forEach(enemy=>this.setEnemyDormant(enemy,true)));
     this.refreshProgressionGates();
 
     this.roomProgressText=this.add.text(this.scale.width-18,18,'ROOM 1 / 3',{
