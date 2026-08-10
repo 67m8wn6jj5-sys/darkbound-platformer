@@ -41,8 +41,43 @@ try {
   };
 
   const game = new Phaser.Game(config);
+
+  // iOS Safari/PWA can report a transient 0-sized viewport while rotating.
+  // Wait for the new viewport to settle, then explicitly resize and redraw
+  // instead of leaving Phaser's RESIZE canvas black.
+  let orientationResizeTimer = null;
+  const recoverViewport = () => {
+    clearTimeout(orientationResizeTimer);
+    orientationResizeTimer = setTimeout(() => {
+      const viewport = window.visualViewport;
+      const width = Math.max(1, Math.round(viewport?.width || window.innerWidth || document.documentElement.clientWidth || 1));
+      const height = Math.max(1, Math.round(viewport?.height || window.innerHeight || document.documentElement.clientHeight || 1));
+      const shell = document.getElementById('game-shell');
+      const parent = document.getElementById('game');
+      if (shell) shell.style.height = `${height}px`;
+      if (parent) parent.style.height = `${height}px`;
+      game.scale.resize(width, height);
+      game.scale.refresh();
+      const scene = game.scene.getScenes(true)[0];
+      if (scene?.cameras?.main) {
+        scene.cameras.main.setSize(width, height);
+        scene.cameras.main.dirty = true;
+      }
+      game.renderer?.resize?.(width, height);
+    }, 180);
+  };
+
+  window.addEventListener('orientationchange', recoverViewport, { passive: true });
+  window.addEventListener('resize', recoverViewport, { passive: true });
+  window.visualViewport?.addEventListener('resize', recoverViewport, { passive: true });
+  window.visualViewport?.addEventListener('scroll', recoverViewport, { passive: true });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) recoverViewport();
+  });
+
   game.events.once('ready', () => {
     document.documentElement.dataset.gameReady = 'true';
+    recoverViewport();
   });
 } catch (error) {
   showStartupError(error);
