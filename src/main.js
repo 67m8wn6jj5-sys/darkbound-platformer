@@ -1,4 +1,4 @@
-import { GameSceneV13 } from './GameSceneV13.js';
+import { GameSceneV14 } from './GameSceneV14.js';
 
 let game = null;
 let startTimer = null;
@@ -42,7 +42,7 @@ function startGame() {
       activePointers: 5
     },
     dom: { createContainer: true },
-    scene: [GameSceneV13],
+    scene: [GameSceneV14],
     render: { antialias: true, pixelArt: false }
   };
 
