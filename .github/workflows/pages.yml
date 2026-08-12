@@ -149,6 +149,54 @@ jobs:
           print(json.dumps(manifest,indent=2))
           PY
 
+      - name: Normalize Boss 1 werewolf frames
+        run: |
+          set -euo pipefail
+          rm -rf .boss1-unpack assets/v05/boss1
+          mkdir -p .boss1-unpack assets/v05/boss1
+          unzip -q -o 'Terrifying_adult_werewol-Idle.zip' -d .boss1-unpack
+          python - <<'PY'
+          from pathlib import Path
+          import shutil, re, json
+          root=Path('.boss1-unpack'); out=Path('assets/v05/boss1')
+          frames=[p for p in root.rglob('frame_*.png') if '__MACOSX' not in p.parts]
+          if not frames: raise SystemExit('Boss 1 archive contains no frame_*.png files')
+          def norm(p): return str(p).lower().replace('-','_').replace(' ','_')
+          def classify(p):
+              s=norm(p)
+              if 'death' in s or 'dead' in s or 'dying' in s: return 'death'
+              if 'hit' in s or 'hurt' in s or 'knock' in s or 'damage' in s: return 'hit'
+              if 'slam' in s or 'leap' in s or 'jump' in s: return 'slam'
+              if 'lunge' in s or 'attack' in s or 'swipe' in s: return 'lunge'
+              if 'idle' in s or 'walk' in s or 'run' in s: return 'idle'
+              return 'idle'
+          manifest={}
+          for action in ('idle','lunge','slam','hit','death'):
+              picked=[p for p in frames if classify(p)==action]
+              if not picked: continue
+              meta={}; bydir={}
+              for d in ('east','west'):
+                  seq=[p for p in picked if d in norm(p)]
+                  seq.sort(key=lambda p:(str(p.parent),int(re.search(r'frame_(\d+)',p.stem).group(1))))
+                  bydir[d]=seq
+              if not bydir['east'] and not bydir['west']:
+                  picked.sort(key=lambda p:(str(p.parent),int(re.search(r'frame_(\d+)',p.stem).group(1))))
+                  bydir['east']=picked
+              if not bydir['east']:
+                  bydir['east']=bydir['west']; meta['mirrorEast']=True
+              if not bydir['west']:
+                  bydir['west']=bydir['east']; meta['mirrorWest']=True
+              for d in ('east','west'):
+                  dest=out/action/d; dest.mkdir(parents=True,exist_ok=True)
+                  for i,p in enumerate(bydir[d]): shutil.copy2(p,dest/f'frame_{i:03d}.png')
+                  meta[d]=len(bydir[d])
+              manifest[action]=meta
+          if 'idle' not in manifest: raise SystemExit('Could not identify Boss 1 idle frames')
+          (out/'manifest.json').write_text(json.dumps(manifest,indent=2))
+          Path('src/boss1Manifest.js').write_text('export const BOSS1_MANIFEST = '+json.dumps(manifest,separators=(',',':'))+';\n')
+          print(json.dumps(manifest,indent=2))
+          PY
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
