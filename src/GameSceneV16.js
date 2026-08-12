@@ -30,6 +30,13 @@ export class GameSceneV16 extends GameSceneV15 {
     }
   }
 
+  singleNextTemplate(depth){
+    // Boss-test route: after clearing the opening room, send the player directly
+    // to Boss 1 instead of requiring the full early-room sequence every attempt.
+    if(depth===1)return super.singleNextTemplate(3);
+    return super.singleNextTemplate(depth);
+  }
+
   bossActionForState(state){
     // Let the supplied lunge animation span both the telegraph and the actual
     // forward burst instead of starting after the windup has already finished.
