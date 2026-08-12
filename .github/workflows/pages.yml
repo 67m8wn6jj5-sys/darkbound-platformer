@@ -154,7 +154,7 @@ jobs:
           set -euo pipefail
           rm -rf .boss1-unpack assets/v05/boss1
           mkdir -p .boss1-unpack assets/v05/boss1
-          unzip -q -o 'Terrifying_adult_werewol-Idle.zip' -d .boss1-unpack
+          unzip -q -o 'Boss1.zip' -d .boss1-unpack
           python - <<'PY'
           from pathlib import Path
           import shutil, re, json
