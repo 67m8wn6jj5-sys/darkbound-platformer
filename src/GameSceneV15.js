@@ -3,8 +3,8 @@ import { BOSS1_MANIFEST } from './boss1Manifest.js';
 
 const BOSS1_ROOT='./assets/v05/boss1';
 const BOSS_HP=12;
-const BOSS_SCALE_HEIGHT=247;
-const BOSS_ART_Y=72;
+const BOSS_SCALE_HEIGHT=321;
+const BOSS_ART_Y=104;
 const BOSS_SPEED=72;
 const BOSS_LUNGE_SPEED=430;
 const BOSS_LUNGE_MS=360;
@@ -354,30 +354,12 @@ export class GameSceneV15 extends GameSceneV14 {
     enemy.sprite.body.setVelocity(0,0);
     enemy.sprite.body.enable=false;
     this.setBossAnim(enemy,BOSS1_MANIFEST.death?'death':'idle',now,true);
-    const action=enemy.animState;
-    const meta=BOSS1_MANIFEST[action];
-    const dir=enemy.facing<0?'west':'east';
-    const count=meta?.[dir]||1;
-    enemy.deathEndsAt=now+Math.max(600,(count/BOSS_DEATH_FPS)*1000);
-    enemy.deathFadeStarted=false;
-    this.time.delayedCall(120,()=>this.setBossHudVisible(false));
-    this.cameras.main.shake(260,.012);
-    this.spawnGreenBurst(enemy.sprite.x,enemy.sprite.y-10,38,160,60,520);
+    const deathFrames=Math.max(BOSS1_MANIFEST.death?.east||0,BOSS1_MANIFEST.death?.west||0,1);
+    enemy.deathEndsAt=now+(BOSS1_MANIFEST.death?Math.ceil(deathFrames/BOSS_DEATH_FPS*1000):520);
+    enemy.hpBar?.setVisible(false);enemy.hpBarBg?.setVisible(false);
     this.updateBossHud();
-    this.updateHud();
-  }
-
-  updateEnemyHealthBars(){
-    super.updateEnemyHealthBars();
-    const enemy=this.boss1;
-    if(!enemy?.sprite)return;
-    enemy.hpBarBg?.setPosition(enemy.sprite.x,enemy.sprite.y-150).setVisible(enemy.alive);
-    enemy.hpBar?.setPosition(enemy.sprite.x-53,enemy.sprite.y-150).setVisible(enemy.alive);
-    if(enemy.alive)enemy.hpBar.setDisplaySize(106*Phaser.Math.Clamp(enemy.hp/enemy.maxHp,0,1),4);
-  }
-
-  update(time,delta){
-    super.update(time,delta);
-    if(this.boss1?.alive)this.updateBossHud();
+    this.cameras.main.shake(250,.012);
+    this.spawnGreenBurst(enemy.sprite.x,enemy.sprite.y,34,125,95,430);
+    this.showRoomBanner('THE MOON-BOUND DEFEATED',1500);
   }
 }
