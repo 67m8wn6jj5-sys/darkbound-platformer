@@ -1,9 +1,17 @@
 from pathlib import Path
-import shutil, re, json, sys
+import shutil, re, json, sys, zipfile
 
 base_root=Path('.pixellab-base')
 update_root=Path('.pixellab-unpack')
 out=Path('assets/v05/pixellab_protagonist')
+
+# The new upload is intentionally a partial update pack. Rebuild the complete
+# protagonist set from the previous production archive, then overlay only the
+# actions supplied by the new pack.
+if base_root.exists(): shutil.rmtree(base_root)
+base_root.mkdir(parents=True,exist_ok=True)
+with zipfile.ZipFile('Protagonist production sprites.zip') as z:
+    z.extractall(base_root)
 
 def norm(p):
     return str(p).lower().replace('-','_').replace(' ','_')
