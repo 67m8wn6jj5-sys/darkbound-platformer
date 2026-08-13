@@ -30,10 +30,16 @@ export class GameSceneV16 extends GameSceneV15 {
     }
   }
 
+  isBranchDepth(depth){
+    // Boss-test route: suppress the normal branch after the opening room.
+    if(depth===0)return false;
+    return super.isBranchDepth(depth);
+  }
+
   singleNextTemplate(depth){
-    // Boss-test route: after clearing the opening room, send the player directly
-    // to Boss 1 instead of requiring the full early-room sequence every attempt.
-    if(depth===1)return super.singleNextTemplate(3);
+    // The boss template is returned by V15 when asked for the normal depth-3
+    // destination. Reuse it immediately after Room 1 for fast boss testing.
+    if(depth===0)return super.singleNextTemplate(3);
     return super.singleNextTemplate(depth);
   }
 
