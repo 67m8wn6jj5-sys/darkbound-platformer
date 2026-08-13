@@ -34,7 +34,7 @@ jobs:
           set -euo pipefail
           rm -rf .pixellab-unpack assets/v05/pixellab_protagonist
           mkdir -p .pixellab-unpack assets/v05/pixellab_protagonist
-          unzip -q -o 'Protagonist production sprites.zip' -d .pixellab-unpack
+          unzip -q -o 'Protagonist sprite updates.zip' -d .pixellab-unpack
           python - <<'PY'
           from pathlib import Path
           import shutil, re, json
