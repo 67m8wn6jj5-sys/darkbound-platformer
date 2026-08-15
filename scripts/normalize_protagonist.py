@@ -12,8 +12,7 @@ base_root.mkdir(parents=True,exist_ok=True)
 with zipfile.ZipFile('Protagonist production sprites.zip') as z:
     z.extractall(base_root)
 
-# The workflow may have unpacked an older update before this script runs. Replace
-# it here with the newest upload so the active build always uses Protagonist update.zip.
+# Always unpack the newest approved protagonist update here.
 if update_root.exists(): shutil.rmtree(update_root)
 update_root.mkdir(parents=True,exist_ok=True)
 with zipfile.ZipFile('Protagonist update.zip') as z:
@@ -26,25 +25,30 @@ def frame_num(p):
     m=re.search(r'frame_(\d+)',p.stem,re.I)
     return int(m.group(1)) if m else 0
 
-def classify(p):
+def classify(p, is_update=False):
     s=norm(p)
     if 'death' in s or 'dying' in s or 'dead' in s: return 'death'
-    if 'hit' in s or 'hurt' in s or 'knock' in s or 'damage' in s: return 'hit'
+    if 'getting_hit' in s or 'hit' in s or 'hurt' in s or 'knock' in s or 'damage' in s: return 'hit'
     if 'attack_2' in s or 'attack2' in s or ('heavy' in s and ('attack' in s or 'sword' in s or 'swing' in s)): return 'heavy_attack'
-    if 'light' in s and ('attack' in s or 'sword' in s or 'swing' in s): return 'light_attack'
+    if 'attack_1' in s or 'attack1' in s or ('light' in s and ('attack' in s or 'sword' in s or 'swing' in s)): return 'light_attack'
     if '/attack/' in s or '\\attack\\' in s or 'sword_attack' in s: return 'light_attack'
+    # In the newest PixelLab update the replacement dash is named "Lunge".
+    if is_update and ('/lunge/' in s or '\\lunge\\' in s): return 'dash'
     if 'dash' in s or 'dodge' in s or 'roll' in s: return 'dash'
     if 'fall' in s: return 'fall'
     if 'jump' in s or 'leap' in s: return 'jump'
     if 'sprint' in s or 'running' in s or '/run/' in s or '\\run\\' in s: return 'run'
+    # PixelLab gave the newest idle replacement a descriptive sentence rather
+    # than an Idle folder name.
+    if is_update and ('stands_in_a_calm_grounded_posture' in s or 'calm_grounded_posture' in s): return 'idle'
     if 'idle' in s or 'walking' in s or '/walk/' in s or '\\walk\\' in s: return 'idle'
     return None
 
-def collect(root):
+def collect(root, is_update=False):
     frames=[p for p in root.rglob('frame_*.png') if '__MACOSX' not in p.parts]
     result={}
     for p in frames:
-        action=classify(p)
+        action=classify(p,is_update)
         if action: result.setdefault(action,[]).append(p)
     return result
 
@@ -69,8 +73,8 @@ def build_action(action,picked):
         meta[d]=len(bydir[d])
     return meta
 
-base=collect(base_root)
-updates=collect(update_root)
+base=collect(base_root,False)
+updates=collect(update_root,True)
 actions=('idle','run','jump','fall','light_attack','heavy_attack','dash','hit','death')
 manifest={}
 for action in actions:
