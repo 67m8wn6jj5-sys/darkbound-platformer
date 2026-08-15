@@ -3,10 +3,10 @@ import { PIXELLAB_MANIFEST } from './pixellabManifest.js';
 
 const ROOT='./assets/v05/pixellab_protagonist';
 const ART_Y=72;
-const ART_SCALE=.85;
+const ART_SCALE=.595;
 
 function updatedKey(action,direction,index){
-  return `px-update2-${action}-${direction}-${String(index).padStart(3,'0')}`;
+  return `px-update3-${action}-${direction}-${String(index).padStart(3,'0')}`;
 }
 
 export class GameSceneV17 extends GameSceneV16 {
@@ -21,7 +21,7 @@ export class GameSceneV17 extends GameSceneV16 {
         for(let i=0;i<count;i++){
           this.load.image(
             updatedKey(action,direction,i),
-            `${ROOT}/${action}/${direction}/frame_${String(i).padStart(3,'0')}.png?v=protagonist-update-2`
+            `${ROOT}/${action}/${direction}/frame_${String(i).padStart(3,'0')}.png?v=protagonist-update-3`
           );
         }
       }
