@@ -1,0 +1,120 @@
+name: Inspect Protagonist Sprite Archive
+
+on:
+  push:
+    branches: [protagonist-animation-system]
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Inventory protagonist production archive
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          from collections import Counter, defaultdict
+          import json, re
+          from PIL import Image
+
+          archive = Path('Protagonist production sprites.zip')
+          unpack = Path('.protagonist-inspect')
+          unpack.mkdir(exist_ok=True)
+          with ZipFile(archive) as z:
+              names = [n for n in z.namelist() if not n.endswith('/') and '__MACOSX' not in n]
+              print('=== ZIP FILE LIST ===')
+              for name in names:
+                  print(name)
+              z.extractall(unpack)
+
+          pngs = sorted(p for p in unpack.rglob('*.png') if '__MACOSX' not in p.parts)
+          gifs = sorted(p for p in unpack.rglob('*.gif') if '__MACOSX' not in p.parts)
+          print(f'=== COUNTS ===\nfiles={len(names)} png={len(pngs)} gif={len(gifs)}')
+
+          directions = ('east','south_east','southeast','south','south_west','southwest','west','north_west','northwest','north','north_east','northeast')
+          action_tokens = ('idle','run','running','sprint','walk','jump','fall','land','landing','attack','light','heavy','hit','hurt','damage','knock','death','dead','die','dodge','roll','dash','lunge','turn','rotate','rotation','interact','heal','wall','slide','crouch')
+
+          def norm(s):
+              return s.lower().replace('-', '_').replace(' ', '_')
+
+          def detected_direction(path):
+              s = norm(str(path))
+              # prefer diagonals before cardinals
+              checks = [
+                  ('southeast', ('south_east','southeast','se_','_se/','/se/')),
+                  ('southwest', ('south_west','southwest','sw_','_sw/','/sw/')),
+                  ('northwest', ('north_west','northwest','nw_','_nw/','/nw/')),
+                  ('northeast', ('north_east','northeast','ne_','_ne/','/ne/')),
+                  ('east', ('east','_e/','/e/')),
+                  ('west', ('west','_w/','/w/')),
+                  ('north', ('north','_n/','/n/')),
+                  ('south', ('south','_s/','/s/')),
+              ]
+              for label, tokens in checks:
+                  if any(t in s for t in tokens): return label
+              return None
+
+          dims = Counter()
+          modes = Counter()
+          dirs = Counter()
+          top_dirs = Counter()
+          action_hints = Counter()
+          by_parent = defaultdict(list)
+          image_rows = []
+          for p in pngs:
+              rel = p.relative_to(unpack)
+              with Image.open(p) as im:
+                  dims[im.size] += 1
+                  modes[im.mode] += 1
+                  alpha_extrema = im.getchannel('A').getextrema() if 'A' in im.getbands() else None
+              d = detected_direction(rel)
+              if d: dirs[d] += 1
+              parts = [norm(x) for x in rel.parts]
+              if len(parts) > 1: top_dirs[parts[0]] += 1
+              s = norm(str(rel))
+              hints = [a for a in action_tokens if a in s]
+              for h in hints: action_hints[h] += 1
+              by_parent[str(rel.parent)].append(rel.name)
+              image_rows.append({'path':str(rel),'direction':d,'size':list(im.size),'mode':im.mode,'alpha_extrema':alpha_extrema,'hints':hints})
+
+          print('=== IMAGE DIMENSIONS ===')
+          for k,v in dims.items(): print(k,v)
+          print('=== IMAGE MODES ===')
+          for k,v in modes.items(): print(k,v)
+          print('=== DETECTED DIRECTIONS ===')
+          for k,v in dirs.items(): print(k,v)
+          print('=== TOP LEVEL DIRECTORIES ===')
+          for k,v in top_dirs.items(): print(k,v)
+          print('=== ACTION TOKEN HINTS ===')
+          for k,v in action_hints.most_common(): print(k,v)
+          print('=== PARENT GROUPS / FRAME COUNTS ===')
+          for parent, files in sorted(by_parent.items()):
+              print(f'{parent}: {len(files)}')
+              for f in sorted(files): print(f'  {f}')
+
+          Path('protagonist-inventory.json').write_text(json.dumps({
+              'archive': archive.name,
+              'file_count': len(names),
+              'png_count': len(pngs),
+              'gif_count': len(gifs),
+              'dimensions': {str(k):v for k,v in dims.items()},
+              'modes': dict(modes),
+              'directions': dict(dirs),
+              'parents': {k:sorted(v) for k,v in by_parent.items()},
+              'images': image_rows,
+          }, indent=2))
+          PY
+
+      - name: Upload inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: protagonist-inventory
+          path: protagonist-inventory.json
