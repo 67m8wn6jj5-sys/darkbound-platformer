@@ -7,6 +7,7 @@ import { existsSync, unlinkSync, writeFileSync } from 'node:fs';
 // protagonist test can import the live class without coupling itself to those
 // unrelated asset-build steps.
 const temporaryManifests = [
+  ['src/enemy1Manifest.js', 'export const ENEMY1_MANIFEST = {};\n'],
   ['src/enemy2Manifest.js', 'export const ENEMY2_MANIFEST = {};\n'],
   ['src/boss1Manifest.js', 'export const BOSS1_MANIFEST = {};\n'],
 ];
