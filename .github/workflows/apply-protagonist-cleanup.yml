@@ -1,0 +1,107 @@
+name: Apply Protagonist Cleanup
+
+on:
+  push:
+    branches: [protagonist-animation-system]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: protagonist-animation-system
+
+      - name: Remove obsolete live protagonist loading
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          v05 = Path('src/GameSceneV05.js')
+          text = v05.read_text()
+          replacements = [
+              (
+                  "const FALLBACK_ASSET_ROOT='./assets/v05/production58',PIXELLAB_ROOT='./assets/v05/pixellab_protagonist',ENEMY1_ROOT='./assets/v05/enemy1';",
+                  "const PIXELLAB_ROOT='./assets/v05/pixellab_protagonist',ENEMY1_ROOT='./assets/v05/enemy1';",
+              ),
+              (
+                  "const ART_SCALE=.38,PIXELLAB_SCALE=1,PIXELLAB_ART_Y=72,ENEMY1_SCALE=1.4688,ENEMY1_ART_Y=66,ATTACK_LUNGE=[90,115,145],ATTACK_RECOIL=[28,36,48];",
+                  "const PIXELLAB_SCALE=1,PIXELLAB_ART_Y=72,ENEMY1_SCALE=1.4688,ENEMY1_ART_Y=66,ATTACK_LUNGE=[90,115,145],ATTACK_RECOIL=[28,36,48];",
+              ),
+              (
+                  "const FALLBACK_SEQUENCES=Object.freeze({idle:{folder:'idle',frames:6},run:{folder:'run',frames:6},jump:{folder:'jump',frames:4},attack:{folder:'attack',frames:8},roll:{folder:'dodge',frames:8},hit:{folder:'hurt',frames:7},death:{folder:'death',frames:8}});\n",
+                  "",
+              ),
+              (
+                  "function fallbackKey(n,i){return`fallback-${n}-${String(i+1).padStart(2,'0')}`;} function pxKey(a,d,i){return`px-${a}-${d}-${String(i).padStart(3,'0')`;} function enemyKey(a,d,i){return`enemy1-${a}-${d}-${String(i).padStart(3,'0')`;}".replace("${String(i).padStart(3,'0')`", "${String(i).padStart(3,'0')}`"),
+                  "function pxKey(a,d,i){return`px-${a}-${d}-${String(i).padStart(3,'0')}`;} function enemyKey(a,d,i){return`enemy1-${a}-${d}-${String(i).padStart(3,'0')}`;}",
+              ),
+              (
+                  "  for(const[n,s]of Object.entries(FALLBACK_SEQUENCES))for(let i=0;i<s.frames;i++){const f=`${s.folder}_${String(i+1).padStart(2,'0')}.png`;this.load.image(fallbackKey(n,i),`${FALLBACK_ASSET_ROOT}/${s.folder}/${f}?v=approved-r2`);}\n",
+                  "",
+              ),
+              (
+                  "art=this.add.image(0,27,fallbackKey('idle',0)).setOrigin(.5,1).setScale(ART_SCALE)",
+                  "art=this.add.rectangle(0,0,1,1,0xffffff,0)",
+              ),
+          ]
+          for old, new in replacements:
+              if old in text:
+                  text = text.replace(old, new, 1)
+              elif new not in text:
+                  raise SystemExit(f'Could not locate expected V05 cleanup target: {old[:100]}')
+          v05.write_text(text)
+
+          pages = Path('.github/workflows/pages.yml')
+          workflow = pages.read_text()
+          old = """      - name: Unpack approved fallback protagonist frames R2
+                run: |
+                  set -euo pipefail
+                  rm -rf assets/v05/production58
+                  mkdir -p assets/v05/production58
+                  unzip -q -o Darkbound_Approved_Production_Sprites_R2.zip -d assets/v05/production58
+                  test -f assets/v05/production58/manifest.json
+
+              - name: Normalize PixelLab protagonist animation frames
+                run: |
+                  set -euo pipefail
+                  rm -rf .pixellab-unpack assets/v05/pixellab_protagonist
+                  mkdir -p .pixellab-unpack assets/v05/pixellab_protagonist
+                  unzip -q -o 'Protagonist sprite updates.zip' -d .pixellab-unpack
+                  python scripts/normalize_protagonist.py
+          """.replace('              - name:', '      - name:').replace('                run:', '        run:').replace('                  ', '          ')
+          new = """      - name: Normalize definitive production protagonist animation set
+                run: |
+                  set -euo pipefail
+                  python scripts/normalize_protagonist.py
+
+              - name: Verify definitive protagonist asset coverage
+                run: |
+                  set -euo pipefail
+                  python scripts/verify_protagonist.py
+          """.replace('              - name:', '      - name:').replace('                run:', '        run:').replace('                  ', '          ')
+          if old in workflow:
+              workflow = workflow.replace(old, new, 1)
+          elif new not in workflow:
+              raise SystemExit('Could not locate expected protagonist block in pages.yml')
+          pages.write_text(workflow)
+          PY
+
+      - name: Commit cleanup if needed
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'Cleanup already applied.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/GameSceneV05.js .github/workflows/pages.yml
+          git commit -m 'Remove obsolete protagonist fallback loading'
+          git push origin HEAD:protagonist-animation-system
