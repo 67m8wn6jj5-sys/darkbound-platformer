@@ -139,21 +139,11 @@ jobs:
           }, indent=2))
           PY
 
-      - name: Inspect transparent artwork bounds
-        run: |
-          set -euo pipefail
-          if command -v convert >/dev/null 2>&1; then
-            echo '=== ALPHA BOUNDS (trim geometry) ==='
-            find '.protagonist-inspect' -type f -name '*.png' -print0 | sort -z | while IFS= read -r -d '' f; do
-              geometry=$(convert "$f" -trim -format '%@' info: 2>/dev/null || true)
-              printf '%s | %s\n' "$f" "$geometry"
-            done
-          else
-            echo 'ImageMagick convert is not available; alpha-bound inspection skipped.'
-          fi
-
-      - name: Upload inventory
+      - name: Upload extracted inspection set
         uses: actions/upload-artifact@v4
         with:
-          name: protagonist-inventory
-          path: protagonist-inventory.json
+          name: protagonist-inspection-set
+          path: |
+            protagonist-inventory.json
+            .protagonist-inspect
+          include-hidden-files: true
