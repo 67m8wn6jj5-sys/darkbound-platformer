@@ -22,6 +22,7 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
+          import re
 
           v05 = Path('src/GameSceneV05.js')
           text = v05.read_text()
@@ -39,7 +40,7 @@ jobs:
                   "",
               ),
               (
-                  "function fallbackKey(n,i){return`fallback-${n}-${String(i+1).padStart(2,'0')}`;} function pxKey(a,d,i){return`px-${a}-${d}-${String(i).padStart(3,'0')`;} function enemyKey(a,d,i){return`enemy1-${a}-${d}-${String(i).padStart(3,'0')`;}".replace("${String(i).padStart(3,'0')`", "${String(i).padStart(3,'0')}`"),
+                  "function fallbackKey(n,i){return`fallback-${n}-${String(i+1).padStart(2,'0')}`;} function pxKey(a,d,i){return`px-${a}-${d}-${String(i).padStart(3,'0')}`;} function enemyKey(a,d,i){return`enemy1-${a}-${d}-${String(i).padStart(3,'0')}`;}",
                   "function pxKey(a,d,i){return`px-${a}-${d}-${String(i).padStart(3,'0')}`;} function enemyKey(a,d,i){return`enemy1-${a}-${d}-${String(i).padStart(3,'0')}`;}",
               ),
               (
@@ -60,23 +61,7 @@ jobs:
 
           pages = Path('.github/workflows/pages.yml')
           workflow = pages.read_text()
-          old = """      - name: Unpack approved fallback protagonist frames R2
-                run: |
-                  set -euo pipefail
-                  rm -rf assets/v05/production58
-                  mkdir -p assets/v05/production58
-                  unzip -q -o Darkbound_Approved_Production_Sprites_R2.zip -d assets/v05/production58
-                  test -f assets/v05/production58/manifest.json
-
-              - name: Normalize PixelLab protagonist animation frames
-                run: |
-                  set -euo pipefail
-                  rm -rf .pixellab-unpack assets/v05/pixellab_protagonist
-                  mkdir -p .pixellab-unpack assets/v05/pixellab_protagonist
-                  unzip -q -o 'Protagonist sprite updates.zip' -d .pixellab-unpack
-                  python scripts/normalize_protagonist.py
-          """.replace('              - name:', '      - name:').replace('                run:', '        run:').replace('                  ', '          ')
-          new = """      - name: Normalize definitive production protagonist animation set
+          replacement = """      - name: Normalize definitive production protagonist animation set
                 run: |
                   set -euo pipefail
                   python scripts/normalize_protagonist.py
@@ -85,11 +70,18 @@ jobs:
                 run: |
                   set -euo pipefail
                   python scripts/verify_protagonist.py
-          """.replace('              - name:', '      - name:').replace('                run:', '        run:').replace('                  ', '          ')
-          if old in workflow:
-              workflow = workflow.replace(old, new, 1)
-          elif new not in workflow:
-              raise SystemExit('Could not locate expected protagonist block in pages.yml')
+          """
+          # Normalize the indentation written above to the actual workflow's
+          # 6-space step / 8-space run / 10-space script convention.
+          replacement = replacement.replace('              - name:', '      - name:').replace('                run:', '        run:').replace('                  ', '          ')
+          pattern = re.compile(
+              r"      - name: Unpack approved fallback protagonist frames R2\n.*?"
+              r"          python scripts/normalize_protagonist\.py\n",
+              re.S,
+          )
+          workflow, changed = pattern.subn(replacement, workflow, count=1)
+          if changed == 0 and 'Normalize definitive production protagonist animation set' not in workflow:
+              raise SystemExit('Could not locate expected protagonist deployment block in pages.yml')
           pages.write_text(workflow)
           PY
 
