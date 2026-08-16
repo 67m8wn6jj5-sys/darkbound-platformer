@@ -22,8 +22,7 @@ jobs:
           from pathlib import Path
           from zipfile import ZipFile
           from collections import Counter, defaultdict
-          import json, re
-          from PIL import Image
+          import json, struct
 
           archive = Path('Protagonist production sprites.zip')
           unpack = Path('.protagonist-inspect')
@@ -39,31 +38,39 @@ jobs:
           gifs = sorted(p for p in unpack.rglob('*.gif') if '__MACOSX' not in p.parts)
           print(f'=== COUNTS ===\nfiles={len(names)} png={len(pngs)} gif={len(gifs)}')
 
-          directions = ('east','south_east','southeast','south','south_west','southwest','west','north_west','northwest','north','north_east','northeast')
           action_tokens = ('idle','run','running','sprint','walk','jump','fall','land','landing','attack','light','heavy','hit','hurt','damage','knock','death','dead','die','dodge','roll','dash','lunge','turn','rotate','rotation','interact','heal','wall','slide','crouch')
 
           def norm(s):
-              return s.lower().replace('-', '_').replace(' ', '_')
+              return s.lower().replace('\\','/').replace('-','_').replace(' ','_')
 
           def detected_direction(path):
-              s = norm(str(path))
-              # prefer diagonals before cardinals
+              s = '/' + norm(str(path)).strip('/') + '/'
               checks = [
-                  ('southeast', ('south_east','southeast','se_','_se/','/se/')),
-                  ('southwest', ('south_west','southwest','sw_','_sw/','/sw/')),
-                  ('northwest', ('north_west','northwest','nw_','_nw/','/nw/')),
-                  ('northeast', ('north_east','northeast','ne_','_ne/','/ne/')),
-                  ('east', ('east','_e/','/e/')),
-                  ('west', ('west','_w/','/w/')),
-                  ('north', ('north','_n/','/n/')),
-                  ('south', ('south','_s/','/s/')),
+                  ('southeast', ('south_east','southeast','/se/','_se_')),
+                  ('southwest', ('south_west','southwest','/sw/','_sw_')),
+                  ('northwest', ('north_west','northwest','/nw/','_nw_')),
+                  ('northeast', ('north_east','northeast','/ne/','_ne_')),
+                  ('east', ('/east/','_east_','/e/')),
+                  ('west', ('/west/','_west_','/w/')),
+                  ('north', ('/north/','_north_','/n/')),
+                  ('south', ('/south/','_south_','/s/')),
               ]
               for label, tokens in checks:
                   if any(t in s for t in tokens): return label
               return None
 
+          def png_meta(path):
+              data = path.read_bytes()
+              if len(data) < 26 or data[:8] != b'\x89PNG\r\n\x1a\n' or data[12:16] != b'IHDR':
+                  return None
+              width, height = struct.unpack('>II', data[16:24])
+              bit_depth = data[24]
+              color_type = data[25]
+              has_alpha = color_type in (4, 6) or b'tRNS' in data
+              return width, height, bit_depth, color_type, has_alpha
+
           dims = Counter()
-          modes = Counter()
+          formats = Counter()
           dirs = Counter()
           top_dirs = Counter()
           action_hints = Counter()
@@ -71,10 +78,14 @@ jobs:
           image_rows = []
           for p in pngs:
               rel = p.relative_to(unpack)
-              with Image.open(p) as im:
-                  dims[im.size] += 1
-                  modes[im.mode] += 1
-                  alpha_extrema = im.getchannel('A').getextrema() if 'A' in im.getbands() else None
+              meta = png_meta(p)
+              if meta:
+                  width, height, bit_depth, color_type, has_alpha = meta
+                  dims[(width, height)] += 1
+                  formats[(bit_depth, color_type, has_alpha)] += 1
+              else:
+                  width = height = bit_depth = color_type = None
+                  has_alpha = False
               d = detected_direction(rel)
               if d: dirs[d] += 1
               parts = [norm(x) for x in rel.parts]
@@ -83,12 +94,12 @@ jobs:
               hints = [a for a in action_tokens if a in s]
               for h in hints: action_hints[h] += 1
               by_parent[str(rel.parent)].append(rel.name)
-              image_rows.append({'path':str(rel),'direction':d,'size':list(im.size),'mode':im.mode,'alpha_extrema':alpha_extrema,'hints':hints})
+              image_rows.append({'path':str(rel),'direction':d,'size':[width,height],'bit_depth':bit_depth,'color_type':color_type,'has_alpha':has_alpha,'hints':hints})
 
           print('=== IMAGE DIMENSIONS ===')
           for k,v in dims.items(): print(k,v)
-          print('=== IMAGE MODES ===')
-          for k,v in modes.items(): print(k,v)
+          print('=== PNG FORMATS (bit_depth, color_type, has_alpha) ===')
+          for k,v in formats.items(): print(k,v)
           print('=== DETECTED DIRECTIONS ===')
           for k,v in dirs.items(): print(k,v)
           print('=== TOP LEVEL DIRECTORIES ===')
@@ -106,7 +117,7 @@ jobs:
               'png_count': len(pngs),
               'gif_count': len(gifs),
               'dimensions': {str(k):v for k,v in dims.items()},
-              'modes': dict(modes),
+              'formats': {str(k):v for k,v in formats.items()},
               'directions': dict(dirs),
               'parents': {k:sorted(v) for k,v in by_parent.items()},
               'images': image_rows,
