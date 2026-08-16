@@ -174,13 +174,12 @@ def main():
                     continue
 
                 # PixelLab supplied Falling as one animation explicitly named
-                # "Falling_off_a_platform_landing_on_your_feet". Preserve every
-                # source PNG byte-for-byte, but expose the final three poses as a
-                # short landing state so contact can be represented separately
-                # from the airborne fall. No image is redrawn, cropped, resized,
-                # recolored, or otherwise altered.
-                if action == 'fall' and len(east) >= 5 and len(west) >= 5:
-                    landing_count = min(3, len(east) - 1, len(west) - 1)
+                # "Falling_off_a_platform_landing_on_your_feet". Visual review
+                # confirms frames 000-003 are airborne and 004-008 are the
+                # touchdown/recovery. Preserve every source PNG byte-for-byte,
+                # but expose those five touchdown poses as a landing state.
+                if action == 'fall' and len(east) >= 6 and len(west) >= 6:
+                    landing_count = min(5, len(east) - 1, len(west) - 1)
                     fall_east, land_east = east[:-landing_count], east[-landing_count:]
                     fall_west, land_west = west[:-landing_count], west[-landing_count:]
                     register_action(
