@@ -1,4 +1,4 @@
-name: Inspect Protagonist Sprite Archive
+name: Verify Protagonist Animation System
 
 on:
   push:
@@ -8,142 +8,67 @@ permissions:
   contents: read
 
 jobs:
-  inspect:
+  verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Inventory protagonist production archive
+      - name: Normalize definitive production protagonist
         run: |
           set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-          from zipfile import ZipFile
-          from collections import Counter, defaultdict
-          import json, struct
+          python scripts/normalize_protagonist.py
 
-          archive = Path('Protagonist production sprites.zip')
-          unpack = Path('.protagonist-inspect')
-          unpack.mkdir(exist_ok=True)
-          with ZipFile(archive) as z:
-              names = [n for n in z.namelist() if not n.endswith('/') and '__MACOSX' not in n]
-              print('=== ZIP FILE LIST ===')
-              for name in names:
-                  print(name)
-              z.extractall(unpack)
+      - name: Verify complete artwork and manifest coverage
+        run: |
+          set -euo pipefail
+          python scripts/verify_protagonist.py
 
-          metadata_files = sorted(unpack.rglob('metadata.json'))
-          metadata = {}
-          print('=== METADATA ===')
-          for p in metadata_files:
-              rel = str(p.relative_to(unpack))
-              try:
-                  data = json.loads(p.read_text())
-              except Exception as exc:
-                  data = {'_parse_error': str(exc), '_raw': p.read_text(errors='replace')}
-              metadata[rel] = data
-              print(rel)
-              print(json.dumps(data, indent=2, sort_keys=True))
+      - name: Parse-check JavaScript modules
+        run: |
+          set -euo pipefail
+          for file in src/*.js; do
+            node --check "$file"
+          done
 
-          pngs = sorted(p for p in unpack.rglob('*.png') if '__MACOSX' not in p.parts)
-          gifs = sorted(p for p in unpack.rglob('*.gif') if '__MACOSX' not in p.parts)
-          print(f'=== COUNTS ===\nfiles={len(names)} png={len(pngs)} gif={len(gifs)} metadata={len(metadata_files)}')
+      - name: Reject stale live protagonist references
+        run: |
+          set -euo pipefail
+          if grep -nE 'px-update4|protagonist-update-[0-9]|Protagonist update\.zip|Protagonist sprite updates\.zip' \
+            src/GameSceneV17.js scripts/normalize_protagonist.py; then
+            echo 'Found stale protagonist integration reference.' >&2
+            exit 1
+          fi
 
-          action_tokens = ('idle','run','running','sprint','walk','jump','fall','land','landing','attack','light','heavy','hit','hurt','damage','knock','death','dead','die','dodge','roll','dash','lunge','turn','rotate','rotation','interact','heal','wall','slide','crouch')
+      - name: Static launch smoke test
+        run: |
+          set -euo pipefail
+          python -m http.server 4173 >/tmp/darkbound-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:4173/index.html >/tmp/index.html; then break; fi
+            sleep .25
+          done
+          test -s /tmp/index.html
+          curl -fsS http://127.0.0.1:4173/src/main.js >/tmp/main.js
+          curl -fsS http://127.0.0.1:4173/src/GameSceneV17.js >/tmp/v17.js
+          curl -fsS http://127.0.0.1:4173/src/pixellabManifest.js >/tmp/protagonist-manifest.js
+          curl -fsS http://127.0.0.1:4173/assets/v05/pixellab_protagonist/idle/east/frame_000.png >/tmp/idle.png
+          curl -fsS http://127.0.0.1:4173/assets/v05/pixellab_protagonist/run/rotations/south.png >/tmp/turn.png
 
-          def norm(s):
-              return s.lower().replace('\\','/').replace('-','_').replace(' ','_')
+          CHROME=''
+          for candidate in google-chrome google-chrome-stable chromium chromium-browser; do
+            if command -v "$candidate" >/dev/null 2>&1; then CHROME="$candidate"; break; fi
+          done
+          if [ -z "$CHROME" ]; then
+            echo 'No Chrome/Chromium binary on runner; HTTP launch smoke passed, browser smoke skipped.'
+            exit 0
+          fi
 
-          def detected_direction(path):
-              s = '/' + norm(str(path)).strip('/') + '/'
-              checks = [
-                  ('southeast', ('south_east','southeast','/se/','_se_')),
-                  ('southwest', ('south_west','southwest','/sw/','_sw_')),
-                  ('northwest', ('north_west','northwest','/nw/','_nw_')),
-                  ('northeast', ('north_east','northeast','/ne/','_ne_')),
-                  ('east', ('/east/','_east_','/e/')),
-                  ('west', ('/west/','_west_','/w/')),
-                  ('north', ('/north/','_north_','/n/')),
-                  ('south', ('/south/','_south_','/s/')),
-              ]
-              for label, tokens in checks:
-                  if any(t in s for t in tokens): return label
-              return None
-
-          def png_meta(path):
-              data = path.read_bytes()
-              if len(data) < 26 or data[:8] != b'\x89PNG\r\n\x1a\n' or data[12:16] != b'IHDR':
-                  return None
-              width, height = struct.unpack('>II', data[16:24])
-              bit_depth = data[24]
-              color_type = data[25]
-              has_alpha = color_type in (4, 6) or b'tRNS' in data
-              return width, height, bit_depth, color_type, has_alpha
-
-          dims = Counter()
-          formats = Counter()
-          dirs = Counter()
-          top_dirs = Counter()
-          action_hints = Counter()
-          by_parent = defaultdict(list)
-          image_rows = []
-          for p in pngs:
-              rel = p.relative_to(unpack)
-              meta = png_meta(p)
-              if meta:
-                  width, height, bit_depth, color_type, has_alpha = meta
-                  dims[(width, height)] += 1
-                  formats[(bit_depth, color_type, has_alpha)] += 1
-              else:
-                  width = height = bit_depth = color_type = None
-                  has_alpha = False
-              d = detected_direction(rel)
-              if d: dirs[d] += 1
-              parts = [norm(x) for x in rel.parts]
-              if len(parts) > 1: top_dirs[parts[0]] += 1
-              s = norm(str(rel))
-              hints = [a for a in action_tokens if a in s]
-              for h in hints: action_hints[h] += 1
-              by_parent[str(rel.parent)].append(rel.name)
-              image_rows.append({'path':str(rel),'direction':d,'size':[width,height],'bit_depth':bit_depth,'color_type':color_type,'has_alpha':has_alpha,'hints':hints})
-
-          print('=== IMAGE DIMENSIONS ===')
-          for k,v in dims.items(): print(k,v)
-          print('=== PNG FORMATS (bit_depth, color_type, has_alpha) ===')
-          for k,v in formats.items(): print(k,v)
-          print('=== DETECTED DIRECTIONS ===')
-          for k,v in dirs.items(): print(k,v)
-          print('=== TOP LEVEL DIRECTORIES ===')
-          for k,v in top_dirs.items(): print(k,v)
-          print('=== ACTION TOKEN HINTS ===')
-          for k,v in action_hints.most_common(): print(k,v)
-          print('=== PARENT GROUPS / FRAME COUNTS ===')
-          for parent, files in sorted(by_parent.items()):
-              print(f'{parent}: {len(files)}')
-              for f in sorted(files): print(f'  {f}')
-
-          Path('protagonist-inventory.json').write_text(json.dumps({
-              'archive': archive.name,
-              'file_count': len(names),
-              'png_count': len(pngs),
-              'gif_count': len(gifs),
-              'metadata_count': len(metadata_files),
-              'metadata': metadata,
-              'dimensions': {str(k):v for k,v in dims.items()},
-              'formats': {str(k):v for k,v in formats.items()},
-              'directions': dict(dirs),
-              'parents': {k:sorted(v) for k,v in by_parent.items()},
-              'images': image_rows,
-          }, indent=2))
-          PY
-
-      - name: Upload extracted inspection set
-        uses: actions/upload-artifact@v4
-        with:
-          name: protagonist-inspection-set
-          path: |
-            protagonist-inventory.json
-            .protagonist-inspect
-          include-hidden-files: true
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage \
+            --window-size=1280,720 --virtual-time-budget=5000 --dump-dom \
+            http://127.0.0.1:4173/index.html >/tmp/darkbound-dom.html 2>/tmp/darkbound-chrome.log
+          grep -q '<canvas' /tmp/darkbound-dom.html
+          echo "Browser launch smoke passed with $CHROME."
