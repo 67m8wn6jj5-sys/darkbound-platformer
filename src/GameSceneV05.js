@@ -3,20 +3,18 @@ import { TUNING } from './config.js';
 import { PIXELLAB_MANIFEST } from './pixellabManifest.js';
 import { ENEMY1_MANIFEST } from './enemy1Manifest.js';
 
-const FALLBACK_ASSET_ROOT='./assets/v05/production58',PIXELLAB_ROOT='./assets/v05/pixellab_protagonist',ENEMY1_ROOT='./assets/v05/enemy1';
-const ART_SCALE=.38,PIXELLAB_SCALE=1,PIXELLAB_ART_Y=72,ENEMY1_SCALE=1.4688,ENEMY1_ART_Y=66,ATTACK_LUNGE=[90,115,145],ATTACK_RECOIL=[28,36,48];
+const PIXELLAB_ROOT='./assets/v05/pixellab_protagonist',ENEMY1_ROOT='./assets/v05/enemy1';
+const PIXELLAB_SCALE=1,PIXELLAB_ART_Y=72,ENEMY1_SCALE=1.4688,ENEMY1_ART_Y=66,ATTACK_LUNGE=[90,115,145],ATTACK_RECOIL=[28,36,48];
 const VFX_GREEN=0x43ff57,VFX_GREEN_HOT=0xbfff8f,VFX_GREEN_CORE=0xf2ffe1;
 const LOOP_FPS=Object.freeze({idle:8,run:14}),ONESHOT_FPS=Object.freeze({jump:12,fall:12,light_attack:18,heavy_attack:16,dash:18,hit:16,death:10});
-const FALLBACK_SEQUENCES=Object.freeze({idle:{folder:'idle',frames:6},run:{folder:'run',frames:6},jump:{folder:'jump',frames:4},attack:{folder:'attack',frames:8},roll:{folder:'dodge',frames:8},hit:{folder:'hurt',frames:7},death:{folder:'death',frames:8}});
-function fallbackKey(n,i){return`fallback-${n}-${String(i+1).padStart(2,'0')}`;} function pxKey(a,d,i){return`px-${a}-${d}-${String(i).padStart(3,'0')}`;} function enemyKey(a,d,i){return`enemy1-${a}-${d}-${String(i).padStart(3,'0')}`;}
+function pxKey(a,d,i){return`px-${a}-${d}-${String(i).padStart(3,'0')}`;} function enemyKey(a,d,i){return`enemy1-${a}-${d}-${String(i).padStart(3,'0')}`;}
 export class GameSceneV05 extends GameScene{
  preload(){
-  for(const[n,s]of Object.entries(FALLBACK_SEQUENCES))for(let i=0;i<s.frames;i++){const f=`${s.folder}_${String(i+1).padStart(2,'0')}.png`;this.load.image(fallbackKey(n,i),`${FALLBACK_ASSET_ROOT}/${s.folder}/${f}?v=approved-r2`);}
   for(const[a,ds]of Object.entries(PIXELLAB_MANIFEST))for(const d of['east','west'])for(let i=0;i<(ds[d]||0);i++){const f=`frame_${String(i).padStart(3,'0')}.png`;this.load.image(pxKey(a,d,i),`${PIXELLAB_ROOT}/${a}/${d}/${f}?v=pixellab-protagonist-2`);}
   for(const[a,ds]of Object.entries(ENEMY1_MANIFEST))for(const d of['east','west'])for(let i=0;i<(ds[d]||0);i++){const f=`frame_${String(i).padStart(3,'0')}.png`;this.load.image(enemyKey(a,d,i),`${ENEMY1_ROOT}/${a}/${d}/${f}?v=enemy1-1`);}
  }
  create(){super.create();this.hitAnimStartsAt=-Infinity;this.hitAnimEndsAt=-Infinity;this.deathAnimStartsAt=-Infinity;this.pixelState='idle';this.pixelStateStartedAt=this.time.now;this.pixelDirection='east';this.currentPixelKey='';this.attackFlash.setAlpha(0);this.attackArc.setVisible(false);this.player.art.setVisible(false);this.pixelArt=this.add.image(this.player.x,this.player.y+PIXELLAB_ART_Y,pxKey('idle','east',0)).setOrigin(.5,1).setScale(PIXELLAB_SCALE).setDepth(100);this.fxWasGrounded=!!this.player?.body?.blocked?.down;this.nextDashTrailAt=0;this.lastCombatHitAt=-Infinity;}
- createPlayer(x,y){const p=this.add.container(x,y),shadow=this.add.ellipse(0,25,48,11,0x000000,.44),aura=this.add.ellipse(0,4,54,90,VFX_GREEN,.055).setStrokeStyle(3,VFX_GREEN_HOT,.2),art=this.add.image(0,27,fallbackKey('idle',0)).setOrigin(.5,1).setScale(ART_SCALE),weaponProxy=this.add.rectangle(16,0,54,8,0xffffff,0).setOrigin(.08,.5);p.add([shadow,aura,art,weaponProxy]);p.art=art;p.aura=aura;p.weapon=weaponProxy;p.cape={setScale(){return this;}};this.physics.add.existing(p);p.body.setSize(28,54).setOffset(-14,-30).setCollideWorldBounds(true).setMaxVelocity(TUNING.rollSpeed,TUNING.maxFallSpeed);return p;}
+ createPlayer(x,y){const p=this.add.container(x,y),shadow=this.add.ellipse(0,25,48,11,0x000000,.44),aura=this.add.ellipse(0,4,54,90,VFX_GREEN,.055).setStrokeStyle(3,VFX_GREEN_HOT,.2),art=this.add.rectangle(0,0,1,1,0xffffff,0),weaponProxy=this.add.rectangle(16,0,54,8,0xffffff,0).setOrigin(.08,.5);p.add([shadow,aura,art,weaponProxy]);p.art=art;p.aura=aura;p.weapon=weaponProxy;p.cape={setScale(){return this;}};this.physics.add.existing(p);p.body.setSize(28,54).setOffset(-14,-30).setCollideWorldBounds(true).setMaxVelocity(TUNING.rollSpeed,TUNING.maxFallSpeed);return p;}
  createEnemy(x,y,type){
   const sprite=this.add.container(x,y),shadow=this.add.ellipse(0,23,66,16,0x000000,.45),art=this.add.image(0,ENEMY1_ART_Y,enemyKey('patrol','east',0)).setOrigin(.5,1).setScale(ENEMY1_SCALE).setDepth(2);sprite.add([shadow,art]);sprite.art=art;sprite.weapon={setAngle(){return this;}};this.physics.add.existing(sprite);sprite.body.setSize(32,52).setOffset(-16,-27).setCollideWorldBounds(true).setMaxVelocity(300,TUNING.maxFallSpeed);
   const tell=this.add.circle(x,y-22,44,0xff304f,.08).setStrokeStyle(3,0xff5b72,.8).setVisible(false).setDepth(45),hpBarBg=this.add.rectangle(x,y-122,56,5,0x140a12,.8).setDepth(44),hpBar=this.add.rectangle(x-27,y-122,54,3,0xff6f8d,1).setOrigin(0,.5).setDepth(45);
