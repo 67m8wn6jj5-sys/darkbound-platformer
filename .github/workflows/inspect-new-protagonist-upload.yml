@@ -1,8 +1,7 @@
 name: Inspect New Protagonist Upload
 
 on:
-  push:
-    branches: [protagonist-animation-system]
+  pull_request:
 
 permissions:
   contents: read
