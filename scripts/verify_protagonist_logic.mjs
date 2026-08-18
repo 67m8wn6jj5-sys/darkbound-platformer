@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 
 const temporaryManifests = [
   ['src/enemy1Manifest.js', 'export const ENEMY1_MANIFEST = {};\n'],
@@ -21,6 +21,7 @@ process.on('exit', () => {
 
 globalThis.Phaser = { Scene: class Scene {} };
 const { GameSceneV17 } = await import('../src/GameSceneV17.js');
+const { PIXELLAB_MANIFEST } = await import('../src/pixellabManifest.js');
 
 function scene(overrides = {}) {
   const s = Object.create(GameSceneV17.prototype);
@@ -33,6 +34,9 @@ function scene(overrides = {}) {
     comboStep: 0,
     facing: 1,
     attackStartsAt: 1000,
+    attackEndsAt: 1195,
+    attackQueued: false,
+    queuedAttackCount: 0,
     lastRollAt: 1000,
     landingStartedAt: -Infinity,
     landingEndsAt: -Infinity,
@@ -52,6 +56,24 @@ function state(name, mutator, expected, time = 1200) {
   assert.equal(s.resolvePixelState(time), expected, name);
 }
 
+// Production visual scale must remain exactly ten percent above the previous
+// 0.36 value. Grounding math uses the same constant.
+assert.match(readFileSync('src/GameSceneV17.js', 'utf8'), /const ART_SCALE=\.396;/);
+
+// The latest archive must expose three genuinely different sword sequences.
+assert.equal(PIXELLAB_MANIFEST.attack_1.sourceAnimation, 'The_character_shifts_their_weight_slightly_to_plan');
+assert.equal(PIXELLAB_MANIFEST.attack_2.sourceAnimation, 'The_warrior_pivots_his_hips_and_drives_his_sword_i');
+assert.equal(PIXELLAB_MANIFEST.attack_3.sourceAnimation, 'The_character_raises_their_sword_in_a_swift_powerf');
+assert.notEqual(PIXELLAB_MANIFEST.attack_1.sourceAnimation, PIXELLAB_MANIFEST.attack_2.sourceAnimation);
+assert.notEqual(PIXELLAB_MANIFEST.attack_2.sourceAnimation, PIXELLAB_MANIFEST.attack_3.sourceAnimation);
+
+{
+  const s=scene();
+  assert.equal(s.attackActionForStep(0),'attack_1');
+  assert.equal(s.attackActionForStep(1),'attack_2');
+  assert.equal(s.attackActionForStep(2),'attack_3');
+}
+
 state('idle', () => {}, 'idle');
 state('run', s => { s.state = 'running'; s.player.body.velocity.x = 285; }, 'run');
 state('jump', s => { s.state = 'rising'; s.player.body.blocked.down = false; s.player.body.velocity.y = -300; }, 'jump');
@@ -66,6 +88,29 @@ state('death', s => { s.dead = true; s.hitAnimEndsAt = 9999; s.state = 'attack-3
 
 state('hit priority over attack', s => { s.hitAnimEndsAt = 1500; s.state = 'attack-3'; s.comboStep = 2; }, 'hit');
 state('attack priority over locomotion', s => { s.state = 'attack-2'; s.comboStep = 1; }, 'attack_2');
+
+// Rapid triple-tap must preserve two buffered presses rather than collapsing
+// them into the old single boolean queue. That guarantees a visible 1->2->3
+// combo even when the player taps faster than the first animation duration.
+{
+  const s=scene({attackStartsAt:1000,attackEndsAt:1195,comboStep:0});
+  s.queueAttack(1050);
+  s.queueAttack(1070);
+  assert.equal(s.queuedAttackCount,2);
+  const started=[];
+  s.startAttack=(time,step)=>{
+    started.push(step);
+    s.comboStep=step;
+    s.attackStartsAt=time;
+    s.attackEndsAt=time+100;
+  };
+  assert.equal(s.finishOrChainAttack(1195),true);
+  assert.equal(started[0],1);
+  assert.equal(s.queuedAttackCount,1);
+  assert.equal(s.finishOrChainAttack(1295),true);
+  assert.equal(started[1],2);
+  assert.equal(s.queuedAttackCount,0);
+}
 
 // A complete reversal uses all intermediate rotations across the two arcs while
 // gameplay facing changes immediately.
@@ -134,4 +179,4 @@ state('attack priority over locomotion', s => { s.state = 'attack-2'; s.comboSte
   assert.equal(s.frameForState('death', 'west', 9000), 7);
 }
 
-console.log('Latest protagonist animation logic verification passed.');
+console.log('Latest protagonist scale, combo, grounding, and FX logic verification passed.');
