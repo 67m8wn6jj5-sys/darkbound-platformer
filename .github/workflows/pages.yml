@@ -21,21 +21,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Unpack approved fallback protagonist frames R2
+      - name: Normalize definitive production protagonist animation set
         run: |
           set -euo pipefail
-          rm -rf assets/v05/production58
-          mkdir -p assets/v05/production58
-          unzip -q -o Darkbound_Approved_Production_Sprites_R2.zip -d assets/v05/production58
-          test -f assets/v05/production58/manifest.json
-
-      - name: Normalize PixelLab protagonist animation frames
-        run: |
-          set -euo pipefail
-          rm -rf .pixellab-unpack assets/v05/pixellab_protagonist
-          mkdir -p .pixellab-unpack assets/v05/pixellab_protagonist
-          unzip -q -o 'Protagonist sprite updates.zip' -d .pixellab-unpack
           python scripts/normalize_protagonist.py
+
+      - name: Verify definitive protagonist asset coverage
+        run: |
+          set -euo pipefail
+          python scripts/verify_protagonist.py
 
       - name: Normalize Enemy 1 PixelLab frames
         run: |
