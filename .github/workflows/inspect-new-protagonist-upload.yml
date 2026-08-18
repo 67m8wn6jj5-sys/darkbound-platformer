@@ -1,0 +1,75 @@
+name: Inspect New Protagonist Upload
+
+on:
+  push:
+    branches: [protagonist-animation-system]
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Inspect archive structure and artwork bounds
+        run: |
+          set -euo pipefail
+          rm -rf .new-protagonist-inspect
+          mkdir -p .new-protagonist-inspect
+          unzip -q -o 'Sprite updates protagonist .zip' -d .new-protagonist-inspect
+          python - <<'PY'
+          from pathlib import Path
+          from collections import Counter, defaultdict
+          import json, struct
+
+          root=Path('.new-protagonist-inspect')
+          files=sorted(p for p in root.rglob('*') if p.is_file() and '__MACOSX' not in p.parts)
+          pngs=[p for p in files if p.suffix.lower()=='.png']
+          gifs=[p for p in files if p.suffix.lower()=='.gif']
+          metas=[p for p in files if p.name.lower()=='metadata.json']
+
+          def meta(path):
+              data=path.read_bytes()
+              if len(data)<26 or data[:8] != b'\x89PNG\r\n\x1a\n' or data[12:16] != b'IHDR': return None
+              w,h=struct.unpack('>II',data[16:24])
+              return w,h,data[24],data[25]
+
+          print('=== SUMMARY ===')
+          print('files',len(files),'png',len(pngs),'gif',len(gifs),'metadata',len(metas))
+          print('=== FILE LIST ===')
+          for p in files: print(p.relative_to(root))
+          print('=== PNG FORMATS ===')
+          formats=Counter(meta(p) for p in pngs)
+          for k,v in formats.items(): print(k,v)
+          print('=== PARENT GROUPS ===')
+          groups=defaultdict(list)
+          for p in pngs: groups[str(p.relative_to(root).parent)].append(p.name)
+          for parent,names in sorted(groups.items()):
+              print(parent, len(names))
+              for n in sorted(names): print(' ',n)
+          print('=== METADATA ===')
+          for p in metas:
+              print('---',p.relative_to(root),'---')
+              try: print(json.dumps(json.loads(p.read_text()),indent=2,sort_keys=True))
+              except Exception as exc: print('PARSE ERROR',exc); print(p.read_text(errors='replace'))
+          PY
+
+          echo '=== ALPHA TRIM BOUNDS ==='
+          if command -v convert >/dev/null 2>&1; then
+            find .new-protagonist-inspect -type f -name '*.png' -print0 | sort -z | while IFS= read -r -d '' f; do
+              geometry=$(convert "$f" -trim -format '%@' info: 2>/dev/null || true)
+              printf '%s | %s\n' "$f" "$geometry"
+            done
+          else
+            echo 'ImageMagick unavailable'
+          fi
+
+      - name: Upload extracted archive for inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: new-protagonist-inspection
+          path: .new-protagonist-inspect
+          include-hidden-files: true
