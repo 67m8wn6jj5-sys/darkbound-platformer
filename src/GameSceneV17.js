@@ -4,19 +4,48 @@ import { PIXELLAB_MANIFEST } from './pixellabManifest.js';
 
 const ROOT='./assets/v05/pixellab_protagonist';
 const PLAYER_FEET_Y=24;
-const ART_SCALE=.36;
+// 0.396 is exactly 10% larger than the previous 0.36 production scale.
+// Grounding stays frame-aware because all padding offsets are multiplied by
+// this same scale before the visible bottom is placed on PLAYER_FEET_Y.
+const ART_SCALE=.396;
+const VFX_GREEN=0x43ff57;
+const VFX_GREEN_HOT=0xbfff8f;
+const VFX_GREEN_CORE=0xf2ffe1;
 
 const ROTATION_RING=Object.freeze(['east','south-east','south','south-west','west','north-west','north','north-east']);
 const TURN_STEP_MS=18;
 const LANDING_MS=180;
 const TURN_ELIGIBLE=new Set(['idle','run','jump','fall','land']);
 const ATTACK_VISUAL_PHASES=Object.freeze({
-  // New export provides three discrete sword sequences. The frame windows below
-  // correspond to the readable blade-contact portion of each approved sequence
-  // while preserving the game's existing hitbox timing.
+  // Each combo step owns a different approved source sequence. These contact
+  // windows are mapped onto the existing gameplay hitbox timing.
   attack_1:{activeFirst:2,activeLast:6},
   attack_2:{activeFirst:4,activeLast:6},
   attack_3:{activeFirst:4,activeLast:6},
+});
+
+// Particle anchors are authored in source-sprite pixels relative to the player
+// foot line. Multiplying them by ART_SCALE keeps the effects attached if the
+// protagonist art scale changes again. The three attacks intentionally use
+// different paths that follow the corresponding sword motion in the new art.
+const ATTACK_FX_PROFILES=Object.freeze({
+  attack_1:{
+    2:{x:58,y:-60,angle:-48,length:142,width:9,travelX:28,travelY:-10,intensity:1},
+    3:{x:24,y:-86,angle:-10,length:150,width:9,travelX:18,travelY:-12,intensity:1},
+    4:{x:10,y:-78,angle:12,length:148,width:9,travelX:22,travelY:4,intensity:1},
+    5:{x:38,y:-54,angle:18,length:164,width:10,travelX:34,travelY:14,intensity:1.08},
+    6:{x:88,y:-14,angle:8,length:176,width:10,travelX:48,travelY:18,intensity:1.12},
+  },
+  attack_2:{
+    4:{x:18,y:-30,angle:8,length:150,width:10,travelX:26,travelY:6,intensity:1.05},
+    5:{x:72,y:-12,angle:15,length:190,width:11,travelX:56,travelY:14,intensity:1.16},
+    6:{x:96,y:8,angle:2,length:172,width:10,travelX:44,travelY:7,intensity:1.1},
+  },
+  attack_3:{
+    4:{x:-12,y:-82,angle:-42,length:188,width:13,travelX:26,travelY:18,intensity:1.2},
+    5:{x:62,y:-36,angle:34,length:228,width:15,travelX:72,travelY:42,intensity:1.4},
+    6:{x:98,y:18,angle:54,length:184,width:13,travelX:54,travelY:34,intensity:1.3},
+  },
 });
 
 function frameKey(action,direction,index){
@@ -59,6 +88,10 @@ function shouldMirror(meta,direction){
   return (direction==='west'&&!!meta?.mirrorWest)||(direction==='east'&&!!meta?.mirrorEast);
 }
 
+function mirroredAngle(angle,facing){
+  return facing>0?angle:180-angle;
+}
+
 export class GameSceneV17 extends GameSceneV16 {
   preload(){
     // V05 loads all supplied east/west frame sequences. V17 adds the eight-way
@@ -74,7 +107,7 @@ export class GameSceneV17 extends GameSceneV16 {
         loaded.add(identity);
         this.load.image(
           rotationKey(source,direction),
-          `${ROOT}/${source}/rotations/${direction}.png?v=protagonist-20260818-1`
+          `${ROOT}/${source}/rotations/${direction}.png?v=protagonist-20260818-2`
         );
       }
     }
@@ -91,6 +124,8 @@ export class GameSceneV17 extends GameSceneV16 {
     this.animationWasGrounded=!!this.player?.body?.blocked?.down;
     this.landingStartedAt=-Infinity;
     this.landingEndsAt=-Infinity;
+    this.lastAttackFxToken='';
+    this.queuedAttackCount=0;
 
     if(this.pixelArt){
       const initialPadding=framePadding(PIXELLAB_MANIFEST.idle,logical,0);
@@ -101,17 +136,76 @@ export class GameSceneV17 extends GameSceneV16 {
     }
   }
 
+  attackActionForStep(step=this.comboStep){
+    return `attack_${Math.max(1,Math.min(3,(Number(step)||0)+1))}`;
+  }
+
   resolvePixelState(time){
     const body=this.player?.body;
     if(!body)return'idle';
     if(this.dead)return'death';
     if(time<this.hitAnimEndsAt)return'hit';
-    if(this.state?.startsWith('attack-'))return`attack_${Math.max(1,Math.min(3,(this.comboStep||0)+1))}`;
+    if(this.state?.startsWith('attack-'))return this.attackActionForStep();
     if(this.state==='rolling')return'dash';
     if(!body.blocked.down)return body.velocity.y<0?'jump':'fall';
     if(time<this.landingEndsAt)return'land';
     if(this.state==='running')return'run';
     return'idle';
+  }
+
+  // V05 still owns the shared combat lunge/recoil behavior. Its legacy
+  // spawnSwordFlare() call dynamically dispatches here, so intentionally make
+  // the start-of-attack flare a no-op: V17 emits particles from the actual
+  // rendered attack frames instead of from an old hard-coded sprite offset.
+  spawnSwordFlare(){}
+
+  startAttack(time,step=null){
+    super.startAttack(time,step);
+    const action=this.attackActionForStep();
+    // Explicitly reset to the correct one of the three approved sequences on
+    // every combo transition, including queued chains.
+    this.setPixelState(action,time,true);
+    this.lastAttackFxToken='';
+    this.attackQueued=this.queuedAttackCount>0;
+  }
+
+  // The base game stores only one queued attack as a boolean. On a fast triple
+  // tap, the second and third presses can therefore collapse into one queue
+  // entry. Keep up to two buffered presses so a rapid 1-2-3 input reliably
+  // plays all three distinct approved attack animations in order.
+  queueAttack(time){
+    if(time<this.attackStartsAt||time>this.attackEndsAt+TUNING.attackInputBufferMs)return;
+    this.queuedAttackCount=Math.min(2,(this.queuedAttackCount||0)+1);
+    this.attackQueued=this.queuedAttackCount>0;
+  }
+
+  finishOrChainAttack(time){
+    if(time<this.attackEndsAt)return true;
+    if((this.queuedAttackCount||0)>0||this.attackQueued){
+      if((this.queuedAttackCount||0)>0)this.queuedAttackCount--;
+      this.attackQueued=this.queuedAttackCount>0;
+      this.startAttack(time,(this.comboStep+1)%3);
+      return true;
+    }
+    this.attackQueued=false;
+    this.attackFlash.setVisible(false);
+    this.attackArc.setVisible(false);
+    this.player.weapon.setAngle(0);
+    return false;
+  }
+
+  // Reproduce V05's roll gameplay exactly, but remove its old fixed-position
+  // initial particle burst. The first trail is now anchored to the dash pose.
+  startRoll(time,body){
+    this.lastRollAt=time;
+    this.rollEndsAt=time+TUNING.rollDurationMs;
+    this.state='rolling';
+    body.setVelocityX(this.facing*TUNING.rollSpeed);
+    this.tweens.killTweensOf(this.player);
+    this.player.setAlpha(1);
+    this.setPixelState('dash',time,true);
+    this.spawnDashTrail(true);
+    this.nextDashTrailAt=time+28;
   }
 
   attackFrame(action,direction,time){
@@ -217,6 +311,163 @@ export class GameSceneV17 extends GameSceneV16 {
     this.visualDirection=logicalDirection;
   }
 
+  emitAttackMotionFx(action,frame,time){
+    const profile=ATTACK_FX_PROFILES[action]?.[frame];
+    if(!profile)return;
+    const token=`${this.attackStartsAt}:${action}:${frame}`;
+    if(token===this.lastAttackFxToken)return;
+    this.lastAttackFxToken=token;
+
+    const facing=this.facing<0?-1:1;
+    const x=this.player.x+facing*profile.x*ART_SCALE;
+    const y=this.player.y+PLAYER_FEET_Y+profile.y*ART_SCALE;
+    const angle=mirroredAngle(profile.angle,facing);
+    const radians=angle*Math.PI/180;
+    const normalX=Math.cos(radians+Math.PI/2);
+    const normalY=Math.sin(radians+Math.PI/2);
+    const length=profile.length*ART_SCALE;
+    const width=Math.max(2,profile.width*ART_SCALE);
+    const intensity=profile.intensity||1;
+    const colors=[VFX_GREEN,VFX_GREEN_HOT,VFX_GREEN_CORE];
+
+    for(let i=0;i<3;i++){
+      const offset=(i-1)*4*ART_SCALE;
+      const streak=this.add.rectangle(
+        x+normalX*offset,
+        y+normalY*offset,
+        length*(.88+i*.08),
+        width*(1.55-i*.38),
+        colors[i],
+        [.26,.54,.9][i]
+      ).setOrigin(.5,.5).setAngle(angle).setDepth(108+i).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({
+        targets:streak,
+        x:streak.x+facing*profile.travelX*ART_SCALE,
+        y:streak.y+profile.travelY*ART_SCALE,
+        scaleX:1.08+intensity*.12,
+        scaleY:.08,
+        alpha:0,
+        duration:Math.round(82+32*intensity+i*16),
+        ease:'Quad.easeOut',
+        onComplete:()=>streak.destroy()
+      });
+    }
+
+    const tipX=x+Math.cos(radians)*length*.48;
+    const tipY=y+Math.sin(radians)*length*.48;
+    const sparkCount=action==='attack_3'?7:4;
+    for(let i=0;i<sparkCount;i++){
+      const spark=this.add.circle(
+        tipX+Phaser.Math.Between(-3,3),
+        tipY+Phaser.Math.Between(-3,3),
+        Phaser.Math.Between(1,3),
+        i%3===0?VFX_GREEN_CORE:VFX_GREEN_HOT,
+        .92
+      ).setDepth(114).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({
+        targets:spark,
+        x:spark.x+facing*Phaser.Math.Between(10,28)*intensity,
+        y:spark.y+Phaser.Math.Between(-12,12)*intensity,
+        alpha:0,
+        scale:.08,
+        duration:Phaser.Math.Between(95,165),
+        ease:'Quad.easeOut',
+        onComplete:()=>spark.destroy()
+      });
+    }
+  }
+
+  spawnDashTrail(initial=false){
+    const facing=this.facing<0?-1:1;
+    // New dash art leans forward with the cape extending behind the torso. Keep
+    // the trail centered behind the shoulder/torso rather than the old canvas Y.
+    const backX=this.player.x-facing*88*ART_SCALE;
+    const torsoY=this.player.y+PLAYER_FEET_Y-70*ART_SCALE;
+    const streakCount=initial?5:3;
+    for(let i=0;i<streakCount;i++){
+      const y=torsoY+Phaser.Math.Between(-30,30)*ART_SCALE;
+      const length=Phaser.Math.Between(105,175)*ART_SCALE;
+      const streak=this.add.rectangle(
+        backX,y,length,Phaser.Math.Between(7,15)*ART_SCALE,
+        i%3===0?VFX_GREEN_CORE:i%2===0?VFX_GREEN:VFX_GREEN_HOT,
+        initial?.7:.48
+      ).setOrigin(facing>0?1:0,.5).setDepth(94).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({
+        targets:streak,
+        x:backX-facing*Phaser.Math.Between(110,185)*ART_SCALE,
+        scaleX:1.75,
+        scaleY:.18,
+        alpha:0,
+        duration:initial?210:170,
+        ease:'Quad.easeOut',
+        onComplete:()=>streak.destroy()
+      });
+    }
+
+    const floorY=this.player.y+PLAYER_FEET_Y-2;
+    for(let i=0;i<(initial?6:3);i++){
+      const fleck=this.add.circle(
+        this.player.x-facing*Phaser.Math.Between(30,80)*ART_SCALE,
+        floorY-Phaser.Math.Between(0,12)*ART_SCALE,
+        Phaser.Math.Between(1,3),
+        VFX_GREEN_HOT,.8
+      ).setDepth(95).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({
+        targets:fleck,
+        x:fleck.x-facing*Phaser.Math.Between(55,125)*ART_SCALE,
+        y:fleck.y-Phaser.Math.Between(2,18)*ART_SCALE,
+        alpha:0,
+        scale:.1,
+        duration:Phaser.Math.Between(120,205),
+        onComplete:()=>fleck.destroy()
+      });
+    }
+  }
+
+  spawnLandingBurst(){
+    // Landing frames crouch directly onto the floor. Emit the burst from the
+    // physics foot line so it stays under the boots after the 10% scale-up.
+    const x=this.player.x;
+    const y=this.player.y+PLAYER_FEET_Y;
+    for(const direction of[-1,1]){
+      for(let i=0;i<3;i++){
+        const streak=this.add.rectangle(
+          x,y-i*2,Math.round((48+i*18)*ART_SCALE),Math.max(2,(7+i*2)*ART_SCALE),
+          i===2?VFX_GREEN_CORE:VFX_GREEN_HOT,.65
+        ).setOrigin(direction<0?1:0,.5).setDepth(96).setBlendMode(Phaser.BlendModes.ADD);
+        this.tweens.add({
+          targets:streak,
+          x:x+direction*(72+i*25)*ART_SCALE,
+          scaleX:1.8,
+          scaleY:.12,
+          alpha:0,
+          duration:190+i*25,
+          ease:'Quad.easeOut',
+          onComplete:()=>streak.destroy()
+        });
+      }
+    }
+    for(let i=0;i<10;i++){
+      const mote=this.add.circle(
+        x+Phaser.Math.Between(-16,16)*ART_SCALE,
+        y-Phaser.Math.Between(0,10)*ART_SCALE,
+        Phaser.Math.Between(1,3),
+        i%3===0?VFX_GREEN_CORE:VFX_GREEN_HOT,.8
+      ).setDepth(97).setBlendMode(Phaser.BlendModes.ADD);
+      const direction=i%2===0?-1:1;
+      this.tweens.add({
+        targets:mote,
+        x:mote.x+direction*Phaser.Math.Between(25,70)*ART_SCALE,
+        y:mote.y-Phaser.Math.Between(8,28)*ART_SCALE,
+        alpha:0,
+        scale:.08,
+        duration:Phaser.Math.Between(150,240),
+        ease:'Quad.easeOut',
+        onComplete:()=>mote.destroy()
+      });
+    }
+  }
+
   updatePixelArt(time){
     if(!this.pixelArt)return;
     const body=this.player?.body;
@@ -234,6 +485,7 @@ export class GameSceneV17 extends GameSceneV16 {
     let key='';
     let bottomPadding=0;
     let flip=false;
+    let frame=-1;
 
     if(TURN_ELIGIBLE.has(action)){
       const turning=this.beginOrUpdateTurn(logicalDirection,time);
@@ -244,7 +496,7 @@ export class GameSceneV17 extends GameSceneV16 {
         this.visualAnimationState='turning';
       }else{
         this.visualDirection=logicalDirection;
-        const frame=this.frameForState(action,logicalDirection,time);
+        frame=this.frameForState(action,logicalDirection,time);
         const textureDirection=sourceDirection(meta,logicalDirection);
         key=frameKey(action,textureDirection,frame);
         bottomPadding=framePadding(meta,logicalDirection,frame);
@@ -253,7 +505,7 @@ export class GameSceneV17 extends GameSceneV16 {
       }
     }else{
       this.cancelTurn(logicalDirection);
-      const frame=this.frameForState(action,logicalDirection,time);
+      frame=this.frameForState(action,logicalDirection,time);
       const textureDirection=sourceDirection(meta,logicalDirection);
       key=frameKey(action,textureDirection,frame);
       bottomPadding=framePadding(meta,logicalDirection,frame);
@@ -267,11 +519,8 @@ export class GameSceneV17 extends GameSceneV16 {
     }
     this.pixelDirection=logicalDirection;
 
-    // Ground the visible sprite, not the transparent canvas. Each new source
-    // frame can be 168, 228, or 256 px tall, so the normalizer records the
-    // transparent padding beneath the meaningful bottom edge of every frame.
-    // Applying that padding at the unchanged 0.36 art scale puts the boots/body
-    // exactly on the Arcade body's +24 px foot line without changing physics.
+    // Ground the visible sprite, not the transparent canvas. This remains exact
+    // after scaling up because bottomPadding uses the same ART_SCALE as the art.
     this.pixelArt
       .setPosition(this.player.x,this.player.y+PLAYER_FEET_Y+bottomPadding*ART_SCALE)
       .setOrigin(.5,1)
@@ -279,6 +528,8 @@ export class GameSceneV17 extends GameSceneV16 {
       .setFlipX(flip)
       .setVisible(true);
     this.player.art.setVisible(false);
+
+    if(action.startsWith('attack_')&&frame>=0)this.emitAttackMotionFx(action,frame,time);
     this.animationWasGrounded=grounded;
   }
 }
