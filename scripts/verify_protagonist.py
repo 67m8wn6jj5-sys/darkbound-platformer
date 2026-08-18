@@ -10,17 +10,24 @@ OUT = Path('assets/v05/pixellab_protagonist')
 MANIFEST_PATH = OUT / 'manifest.json'
 DIRECTIONS = ('east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east')
 EXPECTED_COUNTS = {
-    'idle': 8,
-    'run': 8,
-    'jump': 8,
-    'fall': 4,
-    'land': 5,
-    'light_attack': 9,
-    'heavy_attack': 9,
-    'dash': 9,
-    'hit': 6,
-    'death': 13,
+    'idle': (8, 8),
+    'run': (9, 9),
+    'jump': (9, 9),
+    'fall': (9, 9),
+    'land': (9, 0),
+    'attack_1': (8, 8),
+    'attack_2': (8, 8),
+    'attack_3': (8, 8),
+    'dash': (9, 9),
+    'hit': (8, 8),
+    'death': (8, 8),
 }
+EXPECTED_FORMATS = Counter({
+    (256, 256, 8, 6): 193,
+    (256, 168, 8, 6): 32,
+    (228, 228, 8, 6): 16,
+    (168, 168, 8, 6): 8,
+})
 
 
 def fail(message):
@@ -40,6 +47,27 @@ def png_header(path):
     return width, height, data[24], data[25]
 
 
+def verify_grounding(meta, action, direction, expected_count):
+    source_direction = direction
+    if direction == 'west' and meta.get('mirrorWest'):
+        source_direction = meta.get('mirrorSourceDirection', 'east')
+    if direction == 'east' and meta.get('mirrorEast'):
+        source_direction = meta.get('mirrorSourceDirection', 'west')
+    source_count = meta.get(source_direction, 0)
+    padding = (meta.get('frameBottomPadding') or {}).get(source_direction) or []
+    canvas = (meta.get('frameCanvas') or {}).get(source_direction) or []
+    if source_count and len(padding) != source_count:
+        fail(f'{action}/{direction}: grounding padding count {len(padding)} != source frame count {source_count}')
+    if source_count and len(canvas) != source_count:
+        fail(f'{action}/{direction}: canvas metadata count {len(canvas)} != source frame count {source_count}')
+    for index, value in enumerate(padding):
+        if not isinstance(value, int) or value < 0:
+            fail(f'{action}/{direction} frame {index}: invalid bottom padding {value!r}')
+    for index, dims in enumerate(canvas):
+        if not isinstance(dims, list) or len(dims) != 2 or min(dims) <= 0:
+            fail(f'{action}/{direction} frame {index}: invalid canvas {dims!r}')
+
+
 def main():
     if not MANIFEST_PATH.exists():
         fail(f'missing generated manifest: {MANIFEST_PATH}')
@@ -50,29 +78,40 @@ def main():
     if set(EXPECTED_COUNTS) != set(manifest):
         fail(f'manifest actions differ: expected {sorted(EXPECTED_COUNTS)}, got {sorted(manifest)}')
 
-    for action, expected in EXPECTED_COUNTS.items():
+    for action, (east_expected, west_expected) in EXPECTED_COUNTS.items():
         meta = manifest[action]
-        for direction in ('east', 'west'):
+        for direction, expected in (('east', east_expected), ('west', west_expected)):
             count = meta.get(direction)
             if count != expected:
-                fail(f'{action}/{direction}: expected {expected} frames, got {count}')
+                fail(f'{action}/{direction}: expected {expected} source frames, got {count}')
             paths = sorted((OUT / action / direction).glob('frame_*.png'))
             if len(paths) != expected:
                 fail(f'{action}/{direction}: manifest/files disagree ({count} vs {len(paths)})')
+            verify_grounding(meta, action, direction, expected)
         if meta.get('mappedToGameplay') is not True:
             fail(f'{action}: required action is not mapped to gameplay')
-        if meta.get('mirrorEast') or meta.get('mirrorWest'):
-            fail(f'{action}: dedicated directional art exists; mirroring must not be enabled')
         rotations = tuple(meta.get('rotations') or ())
         if rotations != DIRECTIONS:
             fail(f'{action}: rotation list is incomplete or out of order: {rotations}')
+        rotation_padding = meta.get('rotationBottomPadding') or {}
+        rotation_canvas = meta.get('rotationCanvas') or {}
+        if set(rotation_padding) != set(DIRECTIONS) or set(rotation_canvas) != set(DIRECTIONS):
+            fail(f'{action}: incomplete rotation grounding metadata')
+        if any((not isinstance(v, int) or v < 0) for v in rotation_padding.values()):
+            fail(f'{action}: invalid rotation bottom padding')
 
-    if manifest['fall'].get('sourceFrameRange') != [0, 3]:
-        fail(f"fall source range should be [0, 3], got {manifest['fall'].get('sourceFrameRange')}")
-    if manifest['land'].get('sourceFrameRange') != [4, 8]:
-        fail(f"land source range should be [4, 8], got {manifest['land'].get('sourceFrameRange')}")
-    if manifest['land'].get('rotationSource') != 'fall':
-        fail('landing must reuse the supplied Falling rotation set')
+    # The new landing export is the only directional animation omission: it has
+    # nine east frames, no west frames, but still supplies all eight rotations.
+    land = manifest['land']
+    if not land.get('mirrorWest') or land.get('mirrorSourceDirection') != 'east':
+        fail('landing west must explicitly mirror the supplied east-only sequence')
+    for action, meta in manifest.items():
+        if action != 'land' and (meta.get('mirrorEast') or meta.get('mirrorWest')):
+            fail(f'{action}: unexpected animation mirroring; dedicated directional frames exist')
+
+    attack_sources = {manifest[a].get('rotationSource') for a in ('attack_1', 'attack_2', 'attack_3')}
+    if attack_sources != {'sword_attack'}:
+        fail(f'three sword attacks must share the supplied Sword attack rotation set, got {attack_sources}')
 
     unique_rotation_sources = {meta.get('rotationSource') or action for action, meta in manifest.items()}
     if len(unique_rotation_sources) != 9:
@@ -85,27 +124,26 @@ def main():
 
     source_pngs = sorted(p for p in SOURCE_ROOT.rglob('*.png') if '__MACOSX' not in p.parts)
     output_pngs = sorted(OUT.rglob('*.png'))
-    if len(source_pngs) != 230:
-        fail(f'expected 230 approved source PNGs, found {len(source_pngs)}')
-    if len(output_pngs) != 230:
-        fail(f'expected 230 normalized PNGs, found {len(output_pngs)}')
+    if len(source_pngs) != 249:
+        fail(f'expected 249 latest source PNGs, found {len(source_pngs)}')
+    if len(output_pngs) != 249:
+        fail(f'expected 249 normalized PNGs, found {len(output_pngs)}')
 
-    # This is the key artwork-integrity assertion: normalization may move and
-    # rename approved files, but the multiset of PNG bytes must remain exactly
-    # identical. Any resize, crop, recolor, alpha change, omission, or duplicate
-    # causes this check to fail.
+    # No source art may be altered, omitted, or duplicated during normalization.
     if Counter(map(digest, source_pngs)) != Counter(map(digest, output_pngs)):
-        fail('normalized PNG bytes do not exactly match the approved source archive')
+        fail('normalized PNG bytes do not exactly match the latest uploaded archive')
 
     formats = Counter(png_header(path) for path in output_pngs)
-    if formats != Counter({(184, 184, 8, 6): 230}):
+    if formats != EXPECTED_FORMATS:
         fail(f'unexpected output PNG dimensions/format: {formats}')
 
-    print('Protagonist verification passed.')
+    print('Latest protagonist verification passed.')
     print(f'Actions: {json.dumps(EXPECTED_COUNTS, sort_keys=True)}')
-    print('Directional animation art: dedicated east + west for every action')
+    print('Sword combo: 3 distinct supplied attack sequences mapped to combo steps 1/2/3')
+    print('Landing: east-only sequence documented and mirrored only for west gameplay')
+    print('Grounding: per-frame and per-rotation bottom-padding metadata present')
     print('Rotation art: 9 sets x 8 directions = 72 supplied rotation PNGs')
-    print('Artwork integrity: 230/230 normalized PNGs are byte-identical to source')
+    print('Artwork integrity: 249/249 normalized PNGs are byte-identical to source')
 
 
 if __name__ == '__main__':
