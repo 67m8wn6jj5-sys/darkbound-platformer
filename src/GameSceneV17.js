@@ -4,27 +4,19 @@ import { PIXELLAB_MANIFEST } from './pixellabManifest.js';
 
 const ROOT='./assets/v05/pixellab_protagonist';
 const PLAYER_FEET_Y=24;
-const SOURCE_CANVAS_HEIGHT=184;
-const SOURCE_GROUND_ALPHA_BOTTOM=138;
 const ART_SCALE=.36;
-// The approved PixelLab sprites share a 184x184 canvas. Grounded reference
-// poses end at source y=138, leaving 46 transparent pixels below the boots.
-// Account for that padding at runtime so visible feet align with the unchanged
-// Arcade body rather than anchoring the transparent canvas edge to the floor.
-const PLAYER_ART_BOTTOM_Y=PLAYER_FEET_Y+(SOURCE_CANVAS_HEIGHT-SOURCE_GROUND_ALPHA_BOTTOM)*ART_SCALE;
 
 const ROTATION_RING=Object.freeze(['east','south-east','south','south-west','west','north-west','north','north-east']);
 const TURN_STEP_MS=18;
 const LANDING_MS=180;
 const TURN_ELIGIBLE=new Set(['idle','run','jump','fall','land']);
 const ATTACK_VISUAL_PHASES=Object.freeze({
-  // The light sequence has essentially no wind-up: frame 000 is the anticipation
-  // pose and frames 001-005 carry the readable cutting motion.
-  light_attack:{activeFirst:1,activeLast:5},
-  // Visual review of the approved heavy sequence shows frames 000-004 as the
-  // overhead wind-up and 005-007 as the actual downward impact. Mapping those
-  // poses onto the existing gameplay active window keeps damage timing unchanged.
-  heavy_attack:{activeFirst:5,activeLast:7},
+  // New export provides three discrete sword sequences. The frame windows below
+  // correspond to the readable blade-contact portion of each approved sequence
+  // while preserving the game's existing hitbox timing.
+  attack_1:{activeFirst:2,activeLast:6},
+  attack_2:{activeFirst:4,activeLast:6},
+  attack_3:{activeFirst:4,activeLast:6},
 });
 
 function frameKey(action,direction,index){
@@ -45,14 +37,33 @@ function rangedFrame(first,last,progress){
   return first+Math.min(count-1,Math.floor(clamp01(progress)*count));
 }
 
+function sourceDirection(meta,direction){
+  if(direction==='west'&&meta?.mirrorWest)return meta.mirrorSourceDirection||'east';
+  if(direction==='east'&&meta?.mirrorEast)return meta.mirrorSourceDirection||'west';
+  return direction;
+}
+
+function frameCount(meta,direction){
+  const source=sourceDirection(meta,direction);
+  return Math.max(1,meta?.[source]||1);
+}
+
+function framePadding(meta,direction,index){
+  const source=sourceDirection(meta,direction);
+  const values=meta?.frameBottomPadding?.[source]||[];
+  if(!values.length)return 0;
+  return Number(values[Math.max(0,Math.min(values.length-1,index))])||0;
+}
+
+function shouldMirror(meta,direction){
+  return (direction==='west'&&!!meta?.mirrorWest)||(direction==='east'&&!!meta?.mirrorEast);
+}
+
 export class GameSceneV17 extends GameSceneV16 {
   preload(){
-    // GameSceneV05 already loads every east/west animation sequence described
-    // by the generated manifest. Do not load those frames a second time here.
+    // V05 loads all supplied east/west frame sequences. V17 adds the eight-way
+    // rotation poses once per source set; three sword attacks share one set.
     super.preload();
-
-    // Rotation artwork is unique and intentionally separate from the east/west
-    // animation sequences. Load each source set exactly once; land reuses fall.
     const loaded=new Set();
     for(const [action,meta] of Object.entries(PIXELLAB_MANIFEST)){
       if(!meta||typeof meta!=='object')continue;
@@ -63,7 +74,7 @@ export class GameSceneV17 extends GameSceneV16 {
         loaded.add(identity);
         this.load.image(
           rotationKey(source,direction),
-          `${ROOT}/${source}/rotations/${direction}.png?v=protagonist-production-1`
+          `${ROOT}/${source}/rotations/${direction}.png?v=protagonist-20260818-1`
         );
       }
     }
@@ -82,8 +93,9 @@ export class GameSceneV17 extends GameSceneV16 {
     this.landingEndsAt=-Infinity;
 
     if(this.pixelArt){
+      const initialPadding=framePadding(PIXELLAB_MANIFEST.idle,logical,0);
       this.pixelArt
-        .setPosition(this.player.x,this.player.y+PLAYER_ART_BOTTOM_Y)
+        .setPosition(this.player.x,this.player.y+PLAYER_FEET_Y+initialPadding*ART_SCALE)
         .setOrigin(.5,1)
         .setScale(ART_SCALE);
     }
@@ -92,12 +104,9 @@ export class GameSceneV17 extends GameSceneV16 {
   resolvePixelState(time){
     const body=this.player?.body;
     if(!body)return'idle';
-
-    // Centralized visual priority. Lower-priority locomotion cannot interrupt
-    // death, damage, combat, or dodge animations.
     if(this.dead)return'death';
     if(time<this.hitAnimEndsAt)return'hit';
-    if(this.state?.startsWith('attack-'))return this.comboStep===2?'heavy_attack':'light_attack';
+    if(this.state?.startsWith('attack-'))return`attack_${Math.max(1,Math.min(3,(this.comboStep||0)+1))}`;
     if(this.state==='rolling')return'dash';
     if(!body.blocked.down)return body.velocity.y<0?'jump':'fall';
     if(time<this.landingEndsAt)return'land';
@@ -107,19 +116,18 @@ export class GameSceneV17 extends GameSceneV16 {
 
   attackFrame(action,direction,time){
     const meta=PIXELLAB_MANIFEST[action];
-    const count=Math.max(1,meta?.[direction]||1);
-    const step=this.comboStep===2?2:Math.max(0,Math.min(1,this.comboStep||0));
-    const duration=TUNING.attackDurationsMs[step]||1;
-    const activeStart=TUNING.attackActiveStartMs[step]||0;
-    const activeEnd=Math.max(activeStart,TUNING.attackActiveEndMs[step]||activeStart);
+    const count=frameCount(meta,direction);
+    const actionStep=Math.max(0,Math.min(2,(Number(action.slice(-1))||1)-1));
+    const duration=TUNING.attackDurationsMs[actionStep]||1;
+    const activeStart=TUNING.attackActiveStartMs[actionStep]||0;
+    const activeEnd=Math.max(activeStart,TUNING.attackActiveEndMs[actionStep]||activeStart);
     const elapsed=Math.max(0,Math.min(duration,time-(this.attackStartsAt||time)));
     const profile=ATTACK_VISUAL_PHASES[action]||{activeFirst:1,activeLast:Math.max(1,count-2)};
     const activeFirst=Math.max(0,Math.min(count-1,profile.activeFirst));
     const activeLast=Math.max(activeFirst,Math.min(count-1,profile.activeLast));
 
     if(elapsed<activeStart){
-      const last=Math.max(0,activeFirst-1);
-      return rangedFrame(0,last,activeStart>0?elapsed/activeStart:1);
+      return rangedFrame(0,Math.max(0,activeFirst-1),activeStart>0?elapsed/activeStart:1);
     }
     if(elapsed<=activeEnd){
       return rangedFrame(activeFirst,activeLast,activeEnd>activeStart?(elapsed-activeStart)/(activeEnd-activeStart):1);
@@ -133,10 +141,10 @@ export class GameSceneV17 extends GameSceneV16 {
 
   frameForState(action,direction,time){
     const meta=PIXELLAB_MANIFEST[action];
-    const count=Math.max(1,meta?.[direction]||1);
+    const count=frameCount(meta,direction);
     if(count===1)return 0;
 
-    if(action==='light_attack'||action==='heavy_attack')return this.attackFrame(action,direction,time);
+    if(action.startsWith('attack_'))return this.attackFrame(action,direction,time);
 
     if(action==='dash'){
       const started=Number.isFinite(this.lastRollAt)?this.lastRollAt:time;
@@ -179,12 +187,8 @@ export class GameSceneV17 extends GameSceneV16 {
       this.turning=true;
       this.nextTurnStepAt=time+TURN_STEP_MS;
     }
-
     if(!this.turning)return false;
 
-    // Catch up after a long frame without ever delaying gameplay facing or
-    // velocity. A 180-degree reversal deliberately takes opposite compass arcs:
-    // E -> SE -> S -> SW -> W and W -> NW -> N -> NE -> E.
     let guard=0;
     while(time>=this.nextTurnStepAt&&guard++<ROTATION_RING.length+2){
       if(this.visualDirection===this.turnTargetDirection){
@@ -218,8 +222,6 @@ export class GameSceneV17 extends GameSceneV16 {
     const body=this.player?.body;
     const grounded=!!body?.blocked?.down;
 
-    // Detect the physical airborne -> grounded transition before resolving the
-    // visual state. Landing is purely visual; movement input remains immediate.
     if(grounded&&!this.animationWasGrounded&&!this.dead){
       this.landingStartedAt=time;
       this.landingEndsAt=time+LANDING_MS;
@@ -227,25 +229,35 @@ export class GameSceneV17 extends GameSceneV16 {
 
     const action=this.resolvePixelState(time);
     this.setPixelState(action,time);
+    const meta=PIXELLAB_MANIFEST[action];
     const logicalDirection=this.facing<0?'west':'east';
     let key='';
+    let bottomPadding=0;
+    let flip=false;
 
     if(TURN_ELIGIBLE.has(action)){
       const turning=this.beginOrUpdateTurn(logicalDirection,time);
       if(turning){
-        const source=PIXELLAB_MANIFEST[action]?.rotationSource||action;
+        const source=meta?.rotationSource||action;
         key=rotationKey(source,this.visualDirection);
+        bottomPadding=Number(meta?.rotationBottomPadding?.[this.visualDirection])||0;
         this.visualAnimationState='turning';
       }else{
         this.visualDirection=logicalDirection;
-        key=frameKey(action,logicalDirection,this.frameForState(action,logicalDirection,time));
+        const frame=this.frameForState(action,logicalDirection,time);
+        const textureDirection=sourceDirection(meta,logicalDirection);
+        key=frameKey(action,textureDirection,frame);
+        bottomPadding=framePadding(meta,logicalDirection,frame);
+        flip=shouldMirror(meta,logicalDirection);
         this.visualAnimationState=action;
       }
     }else{
-      // Important animations use their dedicated east/west sequences immediately
-      // and are never interrupted by a cosmetic turn transition.
       this.cancelTurn(logicalDirection);
-      key=frameKey(action,logicalDirection,this.frameForState(action,logicalDirection,time));
+      const frame=this.frameForState(action,logicalDirection,time);
+      const textureDirection=sourceDirection(meta,logicalDirection);
+      key=frameKey(action,textureDirection,frame);
+      bottomPadding=framePadding(meta,logicalDirection,frame);
+      flip=shouldMirror(meta,logicalDirection);
       this.visualAnimationState=action;
     }
 
@@ -254,11 +266,17 @@ export class GameSceneV17 extends GameSceneV16 {
       this.currentPixelKey=key;
     }
     this.pixelDirection=logicalDirection;
+
+    // Ground the visible sprite, not the transparent canvas. Each new source
+    // frame can be 168, 228, or 256 px tall, so the normalizer records the
+    // transparent padding beneath the meaningful bottom edge of every frame.
+    // Applying that padding at the unchanged 0.36 art scale puts the boots/body
+    // exactly on the Arcade body's +24 px foot line without changing physics.
     this.pixelArt
-      .setPosition(this.player.x,this.player.y+PLAYER_ART_BOTTOM_Y)
+      .setPosition(this.player.x,this.player.y+PLAYER_FEET_Y+bottomPadding*ART_SCALE)
       .setOrigin(.5,1)
       .setScale(ART_SCALE)
-      .setFlipX(false)
+      .setFlipX(flip)
       .setVisible(true);
     this.player.art.setVisible(false);
     this.animationWasGrounded=grounded;
