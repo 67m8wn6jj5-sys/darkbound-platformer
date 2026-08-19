@@ -1,0 +1,69 @@
+name: Inspect Protagonist Attack Archives
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inventory protagonist archives
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, zipfile
+
+          out=[]
+          candidates=[]
+          for p in sorted(Path('.').glob('*.zip')):
+              low=p.name.lower()
+              if 'protagonist' in low or 'darkbound' in low:
+                  candidates.append(p)
+
+          for p in candidates:
+              out.append(f'\n===== {p.name} ({p.stat().st_size} bytes) =====')
+              try:
+                  with zipfile.ZipFile(p) as z:
+                      names=z.namelist()
+                      png=[n for n in names if n.lower().endswith('.png')]
+                      gif=[n for n in names if n.lower().endswith('.gif')]
+                      out.append(f'files={len(names)} png={len(png)} gif={len(gif)}')
+                      metadata=[n for n in names if n.lower().endswith('metadata.json')]
+                      if metadata:
+                          for m in metadata[:3]:
+                              out.append(f'metadata={m}')
+                              try:
+                                  data=json.loads(z.read(m))
+                                  out.append(f'export_date={data.get("export_date")} export_version={data.get("export_version")}')
+                                  for state in data.get('states') or []:
+                                      char=state.get('character') or {}
+                                      frames=state.get('frames') or {}
+                                      anims=frames.get('animations') or {}
+                                      out.append(f'  STATE {char.get("name") or state.get("folder")} directions={char.get("directions")}')
+                                      for aname,dirs in anims.items():
+                                          counts={d:len(v or []) for d,v in dirs.items()}
+                                          out.append(f'    ANIM {aname} {counts}')
+                              except Exception as exc:
+                                  out.append(f'  metadata parse error: {exc}')
+                      attack_names=[n for n in names if any(k in n.lower() for k in ('attack','slash','sword','heavy','light'))]
+                      out.append(f'attack_related_entries={len(attack_names)}')
+                      for n in attack_names[:120]:
+                          out.append('  '+n)
+                      if not attack_names:
+                          for n in names[:50]:
+                              out.append('  SAMPLE '+n)
+              except Exception as exc:
+                  out.append(f'ERROR {exc}')
+
+          Path('archive-inspection.txt').write_text('\n'.join(out)+'\n')
+          print('\n'.join(out))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: protagonist-archive-inspection
+          path: archive-inspection.txt
