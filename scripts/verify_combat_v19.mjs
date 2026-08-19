@@ -31,7 +31,10 @@ globalThis.Phaser={
 
 const {GameSceneV19,COMBAT_V19,chooseMeleeIntent,chooseTrollIntent}=await import('../src/GameSceneV19.js');
 
-assert.match(readFileSync('src/main.js','utf8'),/GameSceneV19/,'main must boot Combat Pass 1');
+const mainSource=readFileSync('src/main.js','utf8');
+const v20Source=readFileSync('src/GameSceneV20.js','utf8');
+assert.match(mainSource,/GameSceneV20/,'main must boot the current combat scene');
+assert.match(v20Source,/extends GameSceneV19/,'Combat Pass 2 must preserve Pass 1 through inheritance');
 assert.ok(COMBAT_V19.melee.windupMs>=260,'melee tell must remain readable');
 assert.ok(COMBAT_V19.melee.lungeSpeed>COMBAT_V19.melee.approachSpeedMin,'melee lunge must be a committed burst');
 assert.ok(COMBAT_V19.troll.aimMs>=280,'troll throw must have a readable locked aim');
