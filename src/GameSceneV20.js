@@ -306,4 +306,19 @@ export class GameSceneV20 extends GameSceneV19 {
       this.time.delayedCall(safeStep===2?105:72,()=>art?.clearTint?.());
     }
   }
+
+  killEnemy(enemy){
+    if(enemy?.type==='enemy1')this.clearMeleeDangerLane(enemy);
+    super.killEnemy(enemy);
+  }
+
+  destroyEnemyEntity(enemy){
+    if(enemy?.type==='enemy1')this.clearMeleeDangerLane(enemy);
+    super.destroyEnemyEntity(enemy);
+  }
+
+  killPlayer(){
+    for(const enemy of this.enemies||[])this.clearMeleeDangerLane(enemy);
+    super.killPlayer();
+  }
 }
