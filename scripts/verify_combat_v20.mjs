@@ -22,16 +22,16 @@ process.on('exit',()=>{
 globalThis.Phaser={
   Scene:class Scene{},
   BlendModes:{ADD:'ADD'},
-  Math:{
-    Between:(a)=>a,
-    Clamp:(value,min,max)=>Math.max(min,Math.min(max,value)),
-  },
+  Math:{Between:(a)=>a,Clamp:(value,min,max)=>Math.max(min,Math.min(max,value))},
   Utils:{Array:{GetRandom:(values)=>values[0],Shuffle:(values)=>values}},
 };
 
 const {COMBAT_V20,chooseMeleeIntentV20,meleeContactIsValid}=await import('../src/GameSceneV20.js');
 
-assert.match(readFileSync('src/main.js','utf8'),/GameSceneV20/,'main must boot Combat Pass 2');
+const mainSource=readFileSync('src/main.js','utf8');
+const v21Source=readFileSync('src/GameSceneV21.js','utf8');
+assert.match(mainSource,/GameSceneV21/,'main must boot the current combat scene');
+assert.match(v21Source,/extends GameSceneV20/,'V21 must preserve Combat Pass 2 through inheritance');
 assert.ok(COMBAT_V20.melee.windupMs>=320,'melee telegraph must be clearly readable');
 assert.ok(COMBAT_V20.melee.recoveryMs>=300,'successful evade must create a meaningful punish window');
 assert.ok(COMBAT_V20.melee.activeEndMs-COMBAT_V20.melee.activeStartMs<=90,'melee contact must be a short active window');
