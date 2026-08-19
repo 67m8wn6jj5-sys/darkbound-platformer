@@ -41,9 +41,18 @@ jobs:
       - name: Reject stale live protagonist references
         run: |
           set -euo pipefail
-          if grep -nE 'px-update4|protagonist-update-[0-9]|Protagonist update\.zip|Protagonist sprite updates\.zip|production58|FALLBACK_ASSET_ROOT|FALLBACK_SEQUENCES|fallbackKey' \
+          # The normalizer intentionally reads Protagonist update.zip as the
+          # attack-only replacement source. It must never become a live runtime
+          # asset/fallback reference, and all other obsolete integration names
+          # remain forbidden everywhere in the live pipeline.
+          if grep -nE 'px-update4|protagonist-update-[0-9]|Protagonist sprite updates\.zip|production58|FALLBACK_ASSET_ROOT|FALLBACK_SEQUENCES|fallbackKey' \
             src/GameSceneV05.js src/GameSceneV17.js scripts/normalize_protagonist.py .github/workflows/pages.yml; then
             echo 'Found stale live protagonist integration reference.' >&2
+            exit 1
+          fi
+          if grep -nE 'Protagonist update\.zip' \
+            src/GameSceneV05.js src/GameSceneV17.js .github/workflows/pages.yml; then
+            echo 'Old attack archive leaked into live runtime/deploy references.' >&2
             exit 1
           fi
 
