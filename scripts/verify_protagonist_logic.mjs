@@ -56,14 +56,23 @@ function state(name, mutator, expected, time = 1200) {
   assert.equal(s.resolvePixelState(time), expected, name);
 }
 
-// Production visual scale must remain exactly ten percent above the previous
-// 0.36 value. Grounding math uses the same constant.
+// Keep the +10% visual scale and its matching grounding math from PR #3.
 assert.match(readFileSync('src/GameSceneV17.js', 'utf8'), /const ART_SCALE=\.396;/);
 
-// The latest archive must expose three genuinely different sword sequences.
-assert.equal(PIXELLAB_MANIFEST.attack_1.sourceAnimation, 'The_character_shifts_their_weight_slightly_to_plan');
+// Only the three sword sequences come from the prior protagonist export. All
+// other current art and current rotation poses remain sourced from Aug-18.
+assert.equal(PIXELLAB_MANIFEST.attack_1.sourceAnimation, 'The_character_shifts_their_weight_forward_driving');
 assert.equal(PIXELLAB_MANIFEST.attack_2.sourceAnimation, 'The_warrior_pivots_his_hips_and_drives_his_sword_i');
-assert.equal(PIXELLAB_MANIFEST.attack_3.sourceAnimation, 'The_character_raises_their_sword_in_a_swift_powerf');
+assert.equal(PIXELLAB_MANIFEST.attack_3.sourceAnimation, 'The_character_shifts_their_weight_forward_lifting');
+for (const action of ['attack_1','attack_2','attack_3']) {
+  assert.equal(PIXELLAB_MANIFEST[action].sourceArchive, 'Protagonist update.zip');
+  assert.equal(PIXELLAB_MANIFEST[action].rotationArchive, 'Sprite updates protagonist .zip');
+}
+for (const action of ['idle','run','jump','fall','land','dash','hit','death']) {
+  assert.equal(PIXELLAB_MANIFEST[action].sourceArchive, 'Sprite updates protagonist .zip');
+}
+assert.equal(PIXELLAB_MANIFEST.attack_1.east, 9);
+assert.equal(PIXELLAB_MANIFEST.attack_1.west, 8);
 assert.notEqual(PIXELLAB_MANIFEST.attack_1.sourceAnimation, PIXELLAB_MANIFEST.attack_2.sourceAnimation);
 assert.notEqual(PIXELLAB_MANIFEST.attack_2.sourceAnimation, PIXELLAB_MANIFEST.attack_3.sourceAnimation);
 
@@ -89,9 +98,8 @@ state('death', s => { s.dead = true; s.hitAnimEndsAt = 9999; s.state = 'attack-3
 state('hit priority over attack', s => { s.hitAnimEndsAt = 1500; s.state = 'attack-3'; s.comboStep = 2; }, 'hit');
 state('attack priority over locomotion', s => { s.state = 'attack-2'; s.comboStep = 1; }, 'attack_2');
 
-// Rapid triple-tap must preserve two buffered presses rather than collapsing
-// them into the old single boolean queue. That guarantees a visible 1->2->3
-// combo even when the player taps faster than the first animation duration.
+// Rapid triple-tap still preserves two buffered presses, guaranteeing the three
+// restored sword sequences play visibly in order rather than collapsing inputs.
 {
   const s=scene({attackStartsAt:1000,attackEndsAt:1195,comboStep:0});
   s.queueAttack(1050);
@@ -149,8 +157,8 @@ state('attack priority over locomotion', s => { s.state = 'attack-2'; s.comboSte
   assert.equal(s.facing, 1);
 }
 
-// The three approved attack sequences line their readable contact frames up with
-// the existing gameplay active windows. Gameplay durations are not retuned.
+// Restored attacks retain the existing gameplay active windows. Attack 1 has an
+// extra recovery frame eastward, but blade-contact frames remain 2 through 6.
 {
   const a1 = scene({ state: 'attack-1', comboStep: 0, attackStartsAt: 1000 });
   assert.equal(a1.attackFrame('attack_1', 'east', 1042), 2);
@@ -165,18 +173,17 @@ state('attack priority over locomotion', s => { s.state = 'attack-2'; s.comboSte
   assert.equal(a3.attackFrame('attack_3', 'east', 1190), 6);
 }
 
-// West landing has no supplied west animation; frame selection must still use
-// the full nine-frame east sequence that the renderer mirrors at runtime.
+// West landing remains the unchanged current east-only sequence mirrored at runtime.
 {
   const s = scene({ landingStartedAt: 1000, landingEndsAt: 1180, facing: -1 });
   assert.equal(s.frameForState('land', 'west', 1180), 8);
 }
 
-// Death holds the new eight-frame sequence on its final approved frame.
+// Death remains the unchanged current eight-frame sequence.
 {
   const s = scene({ dead: true, deathAnimStartsAt: 1000, pixelStateStartedAt: 1000 });
   assert.equal(s.frameForState('death', 'east', 5000), 7);
   assert.equal(s.frameForState('death', 'west', 9000), 7);
 }
 
-console.log('Latest protagonist scale, combo, grounding, and FX logic verification passed.');
+console.log('Attack-only protagonist replacement, scale, combo, and grounding verification passed.');
