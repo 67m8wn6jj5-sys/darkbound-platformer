@@ -7,8 +7,10 @@ import sys
 import zipfile
 import zlib
 
-ARCHIVE = Path('Sprite updates protagonist .zip')
+BASE_ARCHIVE = Path('Sprite updates protagonist .zip')
+ATTACK_ARCHIVE = Path('Protagonist update.zip')
 EXTRACT_ROOT = Path('.protagonist-production')
+ATTACK_EXTRACT_ROOT = Path('.protagonist-attack-replacements')
 OUT = Path('assets/v05/pixellab_protagonist')
 MANIFEST_JS = Path('src/pixellabManifest.js')
 DIRECTIONS = ('east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east')
@@ -24,13 +26,16 @@ STATE_ACTIONS = {
     'Dash attack': 'dash',
 }
 
-# The latest Sword attack state contains three deliberately different sequences.
-# Visual review establishes this combo order: quick sweep -> pivoting follow-up ->
-# overhead/downward finisher. Keep every approved frame and expose all three.
+# Restore the three pre-2026-08-18 Sword attack sequences that form the intended
+# gameplay combo. The older export also contains one alternate swing; it is
+# intentionally not mapped because gameplay has exactly three combo steps.
 SWORD_SEQUENCE_ACTIONS = {
-    'The_character_shifts_their_weight_slightly_to_plan': 'attack_1',
+    'The_character_shifts_their_weight_forward_driving': 'attack_1',
     'The_warrior_pivots_his_hips_and_drives_his_sword_i': 'attack_2',
-    'The_character_raises_their_sword_in_a_swift_powerf': 'attack_3',
+    'The_character_shifts_their_weight_forward_lifting': 'attack_3',
+}
+IGNORED_OLD_SWORD_SEQUENCES = {
+    'The_character_firmly_pivots_their_weight_onto_thei',
 }
 
 DEFAULTS = {
@@ -53,23 +58,28 @@ def frame_number(path):
     return int(match.group(1)) if match else 0
 
 
+def extract_archive(archive_path, destination):
+    if not archive_path.exists():
+        raise SystemExit(f'Missing protagonist archive: {archive_path}')
+    destination.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(archive_path) as archive:
+        archive.extractall(destination)
+
+
 def clean_extract():
-    for path in (EXTRACT_ROOT, OUT):
+    for path in (EXTRACT_ROOT, ATTACK_EXTRACT_ROOT, OUT):
         if path.exists():
             shutil.rmtree(path)
-    EXTRACT_ROOT.mkdir(parents=True, exist_ok=True)
+    extract_archive(BASE_ARCHIVE, EXTRACT_ROOT)
+    extract_archive(ATTACK_ARCHIVE, ATTACK_EXTRACT_ROOT)
     OUT.mkdir(parents=True, exist_ok=True)
-    if not ARCHIVE.exists():
-        raise SystemExit(f'Missing latest protagonist archive: {ARCHIVE}')
-    with zipfile.ZipFile(ARCHIVE) as archive:
-        archive.extractall(EXTRACT_ROOT)
 
 
-def resolve_source(relative_path):
-    candidate = EXTRACT_ROOT / relative_path
+def resolve_source(relative_path, source_root=EXTRACT_ROOT):
+    candidate = source_root / relative_path
     if candidate.exists():
         return candidate
-    raise FileNotFoundError(f'Cannot resolve protagonist metadata asset: {relative_path!r}')
+    raise FileNotFoundError(f'Cannot resolve protagonist metadata asset in {source_root}: {relative_path!r}')
 
 
 def paeth(a, b, c):
@@ -85,14 +95,7 @@ def paeth(a, b, c):
 
 
 def png_ground_metrics(path):
-    """Read an 8-bit RGBA PNG without Pillow and find a stable visible baseline.
-
-    Artwork remains byte-for-byte untouched. We only inspect alpha values to find
-    the last row containing at least 10 meaningfully opaque pixels. This ignores
-    isolated glow/spark pixels while following boots/body contact across mixed
-    168/228/256 canvases. The resulting bottom padding is used at runtime to put
-    that visual baseline on the unchanged Arcade-body foot line.
-    """
+    """Read an 8-bit RGBA PNG and find a stable visible bottom without editing art."""
     data = path.read_bytes()
     if data[:8] != b'\x89PNG\r\n\x1a\n':
         raise ValueError(f'{path}: not a PNG')
@@ -193,6 +196,7 @@ def copy_sequence(action, direction, sources):
 
 
 def copy_rotations(rotation_source, rotation_map):
+    """Always keep the current Aug-18 rotation art, including sword rotations."""
     destination = OUT / rotation_source / 'rotations'
     destination.mkdir(parents=True, exist_ok=True)
     padding = {}
@@ -201,7 +205,7 @@ def copy_rotations(rotation_source, rotation_map):
         relative_path = rotation_map.get(direction)
         if not relative_path:
             raise ValueError(f'{rotation_source}: missing rotation {direction}')
-        source = resolve_source(relative_path)
+        source = resolve_source(relative_path, EXTRACT_ROOT)
         shutil.copy2(source, destination / f'{direction}.png')
         metrics = png_ground_metrics(source)
         padding[direction] = metrics['bottomPadding']
@@ -209,12 +213,14 @@ def copy_rotations(rotation_source, rotation_map):
     return padding, canvas
 
 
-def action_meta(action, source_state, source_animation, rotation_source, rotation_padding, rotation_canvas):
+def action_meta(action, source_state, source_animation, source_archive, rotation_source, rotation_padding, rotation_canvas):
     meta = dict(DEFAULTS[action])
     meta.update({
         'sourceState': source_state,
         'sourceAnimation': source_animation,
+        'sourceArchive': source_archive,
         'rotationSource': rotation_source,
+        'rotationArchive': BASE_ARCHIVE.name,
         'rotations': list(DIRECTIONS),
         'rotationBottomPadding': rotation_padding,
         'rotationCanvas': rotation_canvas,
@@ -223,15 +229,67 @@ def action_meta(action, source_state, source_animation, rotation_source, rotatio
     return meta
 
 
+def find_state(metadata, wanted_name):
+    for state in metadata.get('states') or []:
+        character = state.get('character') or {}
+        state_name = str(character.get('name') or state.get('folder') or '')
+        if state_name == wanted_name:
+            return state
+    return None
+
+
+def copy_animation_action(action, state_name, animation_name, directional_frames, source_root, source_archive,
+                          rotation_source, rotation_padding, rotation_canvas, issues):
+    try:
+        east_sources = [resolve_source(p, source_root) for p in directional_frames.get('east', [])]
+        west_sources = [resolve_source(p, source_root) for p in directional_frames.get('west', [])]
+        if not east_sources:
+            raise ValueError('missing east animation frames')
+        meta = action_meta(
+            action, state_name, animation_name, source_archive,
+            rotation_source, rotation_padding, rotation_canvas
+        )
+        east = copy_sequence(action, 'east', east_sources)
+        meta['east'] = east['count']
+        meta.setdefault('frameBottomPadding', {})['east'] = east['bottomPadding']
+        meta.setdefault('frameCanvas', {})['east'] = east['canvas']
+
+        if west_sources:
+            west = copy_sequence(action, 'west', west_sources)
+            meta['west'] = west['count']
+            meta['frameBottomPadding']['west'] = west['bottomPadding']
+            meta['frameCanvas']['west'] = west['canvas']
+        elif action == 'land':
+            meta['west'] = 0
+            meta['mirrorWest'] = True
+            meta['mirrorSourceDirection'] = 'east'
+            meta['frameBottomPadding']['west'] = []
+            meta['frameCanvas']['west'] = []
+        else:
+            raise ValueError('missing west animation frames')
+        return meta
+    except Exception as exc:
+        issues.append(f'{state_name}/{animation_name}: {exc}')
+        return None
+
+
 def main():
     clean_extract()
-    metadata_path = EXTRACT_ROOT / 'metadata.json'
-    if not metadata_path.exists():
-        raise SystemExit('Latest protagonist archive is missing root metadata.json')
-    metadata = json.loads(metadata_path.read_text())
-    states = metadata.get('states') or []
+    base_metadata_path = EXTRACT_ROOT / 'metadata.json'
+    attack_metadata_path = ATTACK_EXTRACT_ROOT / 'metadata.json'
+    if not base_metadata_path.exists():
+        raise SystemExit(f'{BASE_ARCHIVE} is missing root metadata.json')
+    if not attack_metadata_path.exists():
+        raise SystemExit(f'{ATTACK_ARCHIVE} is missing root metadata.json')
+
+    base_metadata = json.loads(base_metadata_path.read_text())
+    attack_metadata = json.loads(attack_metadata_path.read_text())
+    states = base_metadata.get('states') or []
     if not states:
-        raise SystemExit('Latest protagonist metadata contains no states[]')
+        raise SystemExit('Current protagonist metadata contains no states[]')
+    old_sword_state = find_state(attack_metadata, 'Sword attack')
+    if not old_sword_state:
+        raise SystemExit(f'{ATTACK_ARCHIVE} contains no Sword attack state')
 
     manifest = {}
     issues = []
@@ -249,10 +307,7 @@ def main():
             issues.append(f'{state_name}: no animation sequences found')
             continue
 
-        if state_name == 'Sword attack':
-            rotation_source = 'sword_attack'
-        else:
-            rotation_source = STATE_ACTIONS.get(state_name)
+        rotation_source = 'sword_attack' if state_name == 'Sword attack' else STATE_ACTIONS.get(state_name)
         if not rotation_source:
             issues.append(f'Unknown protagonist state: {state_name!r}')
             continue
@@ -265,48 +320,44 @@ def main():
                 continue
         rotation_padding, rotation_canvas = copied_rotation_sources[rotation_source]
 
-        for animation_name, directional_frames in animations.items():
-            if state_name == 'Sword attack':
-                action = SWORD_SEQUENCE_ACTIONS.get(animation_name)
-                if not action:
-                    issues.append(f'Sword attack: unmapped animation {animation_name!r}')
+        if state_name == 'Sword attack':
+            old_character = old_sword_state.get('character') or {}
+            if old_character.get('directions') != 8:
+                issues.append(f'Old Sword attack: expected 8 directions, found {old_character.get("directions")!r}')
+            old_animations = ((old_sword_state.get('frames') or {}).get('animations') or {})
+            seen = set(old_animations)
+            expected = set(SWORD_SEQUENCE_ACTIONS) | IGNORED_OLD_SWORD_SEQUENCES
+            unexpected = sorted(seen - expected)
+            missing_old = sorted(set(SWORD_SEQUENCE_ACTIONS) - seen)
+            if unexpected:
+                issues.append('Old Sword attack contains unexpected animations: ' + ', '.join(unexpected))
+            if missing_old:
+                issues.append('Old Sword attack is missing required animations: ' + ', '.join(missing_old))
+            for animation_name, action in SWORD_SEQUENCE_ACTIONS.items():
+                directional_frames = old_animations.get(animation_name)
+                if not directional_frames:
                     continue
-            else:
-                action = STATE_ACTIONS[state_name]
-                if action in manifest:
-                    issues.append(f'{state_name}: multiple animations supplied unexpectedly')
-                    continue
+                meta = copy_animation_action(
+                    action, 'Sword attack', animation_name, directional_frames,
+                    ATTACK_EXTRACT_ROOT, ATTACK_ARCHIVE.name,
+                    rotation_source, rotation_padding, rotation_canvas, issues
+                )
+                if meta:
+                    manifest[action] = meta
+            continue
 
-            try:
-                east_sources = [resolve_source(p) for p in directional_frames.get('east', [])]
-                west_sources = [resolve_source(p) for p in directional_frames.get('west', [])]
-                if not east_sources:
-                    raise ValueError('missing east animation frames')
-                meta = action_meta(action, state_name, animation_name, rotation_source, rotation_padding, rotation_canvas)
-                east = copy_sequence(action, 'east', east_sources)
-                meta['east'] = east['count']
-                meta.setdefault('frameBottomPadding', {})['east'] = east['bottomPadding']
-                meta.setdefault('frameCanvas', {})['east'] = east['canvas']
-
-                if west_sources:
-                    west = copy_sequence(action, 'west', west_sources)
-                    meta['west'] = west['count']
-                    meta['frameBottomPadding']['west'] = west['bottomPadding']
-                    meta['frameCanvas']['west'] = west['canvas']
-                elif action == 'land':
-                    # The 2026-08-18 export genuinely contains no west landing
-                    # animation. Keep one copy of the approved east bytes and let
-                    # the runtime mirror this single missing directional variant.
-                    meta['west'] = 0
-                    meta['mirrorWest'] = True
-                    meta['mirrorSourceDirection'] = 'east'
-                    meta['frameBottomPadding']['west'] = []
-                    meta['frameCanvas']['west'] = []
-                else:
-                    raise ValueError('missing west animation frames')
-                manifest[action] = meta
-            except Exception as exc:
-                issues.append(f'{state_name}/{animation_name}: {exc}')
+        action = STATE_ACTIONS[state_name]
+        if len(animations) != 1:
+            issues.append(f'{state_name}: expected exactly one current animation, found {len(animations)}')
+            continue
+        animation_name, directional_frames = next(iter(animations.items()))
+        meta = copy_animation_action(
+            action, state_name, animation_name, directional_frames,
+            EXTRACT_ROOT, BASE_ARCHIVE.name,
+            rotation_source, rotation_padding, rotation_canvas, issues
+        )
+        if meta:
+            manifest[action] = meta
 
     required = ('idle', 'run', 'jump', 'fall', 'land', 'attack_1', 'attack_2', 'attack_3', 'dash', 'hit', 'death')
     missing = [action for action in required if action not in manifest]
@@ -324,9 +375,12 @@ def main():
         'export const PIXELLAB_MANIFEST = ' + json.dumps(manifest, separators=(',', ':')) + ';\n'
     )
 
-    print('Latest protagonist archive:', ARCHIVE)
-    print('Export date:', metadata.get('export_date'))
+    print('Current protagonist archive:', BASE_ARCHIVE)
+    print('Current export date:', base_metadata.get('export_date'))
+    print('Attack replacement archive:', ATTACK_ARCHIVE)
+    print('Attack export date:', attack_metadata.get('export_date'))
     print('Runtime actions:', ', '.join(manifest))
+    print('Restored attack animations:', ', '.join(SWORD_SEQUENCE_ACTIONS))
     print(json.dumps(manifest, indent=2))
 
 
