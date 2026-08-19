@@ -9,8 +9,8 @@ import zlib
 
 BASE_ARCHIVE = Path('Sprite updates protagonist .zip')
 ATTACK_ARCHIVE = Path('Protagonist update.zip')
-EXTRACT_ROOT = Path('.protagonist-production')
-ATTACK_EXTRACT_ROOT = Path('.protagonist-attack-replacements')
+BASE_ROOT = Path('.protagonist-production')
+ATTACK_ROOT = Path('.protagonist-attack-replacements')
 OUT = Path('assets/v05/pixellab_protagonist')
 MANIFEST_JS = Path('src/pixellabManifest.js')
 DIRECTIONS = ('east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east')
@@ -26,16 +26,13 @@ STATE_ACTIONS = {
     'Dash attack': 'dash',
 }
 
-# Restore the three pre-2026-08-18 Sword attack sequences that form the intended
-# gameplay combo. The older export also contains one alternate swing; it is
-# intentionally not mapped because gameplay has exactly three combo steps.
+# All four older sword sequences are preserved. Three remain the canonical combo
+# and the fourth is exposed as attack_alt for V18's controlled visual variation.
 SWORD_SEQUENCE_ACTIONS = {
     'The_character_shifts_their_weight_forward_driving': 'attack_1',
     'The_warrior_pivots_his_hips_and_drives_his_sword_i': 'attack_2',
     'The_character_shifts_their_weight_forward_lifting': 'attack_3',
-}
-IGNORED_OLD_SWORD_SEQUENCES = {
-    'The_character_firmly_pivots_their_weight_onto_thei',
+    'The_character_firmly_pivots_their_weight_onto_thei': 'attack_alt',
 }
 
 DEFAULTS = {
@@ -47,10 +44,16 @@ DEFAULTS = {
     'attack_1': {'fps': 18, 'loop': False, 'gameplay': 'combo attack 1'},
     'attack_2': {'fps': 18, 'loop': False, 'gameplay': 'combo attack 2'},
     'attack_3': {'fps': 16, 'loop': False, 'gameplay': 'combo attack 3 / heavy finisher'},
+    'attack_alt': {'fps': 18, 'loop': False, 'gameplay': 'alternate combo visual'},
     'dash': {'fps': 18, 'loop': False, 'gameplay': 'dodge / evade'},
     'hit': {'fps': 16, 'loop': False, 'gameplay': 'damage / knockback'},
     'death': {'fps': 10, 'loop': False, 'gameplay': 'death'},
 }
+
+
+def fail(message):
+    print(f'PROTAGONIST NORMALIZE FAILED: {message}', file=sys.stderr)
+    raise SystemExit(1)
 
 
 def frame_number(path):
@@ -58,44 +61,32 @@ def frame_number(path):
     return int(match.group(1)) if match else 0
 
 
-def extract_archive(archive_path, destination):
-    if not archive_path.exists():
-        raise SystemExit(f'Missing protagonist archive: {archive_path}')
+def extract(archive, destination):
+    if not archive.exists():
+        fail(f'missing archive: {archive}')
+    if destination.exists():
+        shutil.rmtree(destination)
     destination.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(archive_path) as archive:
-        archive.extractall(destination)
+    with zipfile.ZipFile(archive) as z:
+        z.extractall(destination)
 
 
-def clean_extract():
-    for path in (EXTRACT_ROOT, ATTACK_EXTRACT_ROOT, OUT):
-        if path.exists():
-            shutil.rmtree(path)
-    extract_archive(BASE_ARCHIVE, EXTRACT_ROOT)
-    extract_archive(ATTACK_ARCHIVE, ATTACK_EXTRACT_ROOT)
-    OUT.mkdir(parents=True, exist_ok=True)
-
-
-def resolve_source(relative_path, source_root=EXTRACT_ROOT):
-    candidate = source_root / relative_path
-    if candidate.exists():
-        return candidate
-    raise FileNotFoundError(f'Cannot resolve protagonist metadata asset in {source_root}: {relative_path!r}')
+def resolve(root, relative):
+    path = root / relative
+    if not path.exists():
+        raise FileNotFoundError(f'{root}: missing {relative}')
+    return path
 
 
 def paeth(a, b, c):
     p = a + b - c
-    pa = abs(p - a)
-    pb = abs(p - b)
-    pc = abs(p - c)
+    pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
     if pa <= pb and pa <= pc:
         return a
-    if pb <= pc:
-        return b
-    return c
+    return b if pb <= pc else c
 
 
-def png_ground_metrics(path):
-    """Read an 8-bit RGBA PNG and find a stable visible bottom without editing art."""
+def png_metrics(path):
     data = path.read_bytes()
     if data[:8] != b'\x89PNG\r\n\x1a\n':
         raise ValueError(f'{path}: not a PNG')
@@ -104,30 +95,26 @@ def png_ground_metrics(path):
     width = height = bit_depth = color_type = interlace = None
     while pos + 12 <= len(data):
         length = struct.unpack('>I', data[pos:pos + 4])[0]
-        chunk_type = data[pos + 4:pos + 8]
+        kind = data[pos + 4:pos + 8]
         payload = data[pos + 8:pos + 8 + length]
         pos += 12 + length
-        if chunk_type == b'IHDR':
-            width, height, bit_depth, color_type, _comp, _filter, interlace = struct.unpack('>IIBBBBB', payload)
-        elif chunk_type == b'IDAT':
+        if kind == b'IHDR':
+            width, height, bit_depth, color_type, _c, _f, interlace = struct.unpack('>IIBBBBB', payload)
+        elif kind == b'IDAT':
             idat.extend(payload)
-        elif chunk_type == b'IEND':
+        elif kind == b'IEND':
             break
-
     if (bit_depth, color_type, interlace) != (8, 6, 0):
-        raise ValueError(f'{path}: expected non-interlaced 8-bit RGBA PNG, got bit_depth={bit_depth}, color_type={color_type}, interlace={interlace}')
+        raise ValueError(f'{path}: expected non-interlaced 8-bit RGBA PNG')
 
     raw = zlib.decompress(bytes(idat))
-    bpp = 4
-    stride = width * bpp
-    expected = height * (stride + 1)
-    if len(raw) != expected:
-        raise ValueError(f'{path}: unexpected decompressed PNG size {len(raw)} != {expected}')
-
+    stride = width * 4
+    if len(raw) != height * (stride + 1):
+        raise ValueError(f'{path}: unexpected decompressed size')
     previous = bytearray(stride)
+    cursor = 0
     robust_bottom = None
     any_bottom = None
-    cursor = 0
     for y in range(height):
         filter_type = raw[cursor]
         cursor += 1
@@ -135,9 +122,9 @@ def png_ground_metrics(path):
         cursor += stride
         row = bytearray(stride)
         for x, value in enumerate(scan):
-            left = row[x - bpp] if x >= bpp else 0
+            left = row[x - 4] if x >= 4 else 0
             up = previous[x]
-            upper_left = previous[x - bpp] if x >= bpp else 0
+            upper_left = previous[x - 4] if x >= 4 else 0
             if filter_type == 0:
                 result = value
             elif filter_type == 1:
@@ -151,73 +138,64 @@ def png_ground_metrics(path):
             else:
                 raise ValueError(f'{path}: unsupported PNG filter {filter_type}')
             row[x] = result
-
-        alpha_count = 0
-        any_alpha = False
-        for x in range(3, stride, 4):
-            alpha = row[x]
-            if alpha:
-                any_alpha = True
-            if alpha >= 32:
-                alpha_count += 1
-        if any_alpha:
+        alpha = [row[x] for x in range(3, stride, 4)]
+        if any(alpha):
             any_bottom = y
-        if alpha_count >= 10:
+        if sum(1 for value in alpha if value >= 32) >= 10:
             robust_bottom = y
         previous = row
-
-    ground_bottom = robust_bottom if robust_bottom is not None else any_bottom
-    if ground_bottom is None:
-        raise ValueError(f'{path}: fully transparent PNG')
-    return {
-        'width': width,
-        'height': height,
-        'groundBottom': ground_bottom,
-        'bottomPadding': height - 1 - ground_bottom,
-    }
+    bottom = robust_bottom if robust_bottom is not None else any_bottom
+    if bottom is None:
+        raise ValueError(f'{path}: fully transparent')
+    return width, height, height - 1 - bottom
 
 
-def sequence_metrics(sources):
-    return [png_ground_metrics(source) for source in sources]
-
-
-def copy_sequence(action, direction, sources):
-    ordered = sorted(sources, key=frame_number)
-    destination = OUT / action / direction
-    destination.mkdir(parents=True, exist_ok=True)
-    for index, source in enumerate(ordered):
-        shutil.copy2(source, destination / f'frame_{index:03d}.png')
-    metrics = sequence_metrics(ordered)
-    return {
-        'count': len(ordered),
-        'bottomPadding': [m['bottomPadding'] for m in metrics],
-        'canvas': [[m['width'], m['height']] for m in metrics],
-    }
+def find_state(metadata, wanted):
+    for state in metadata.get('states') or []:
+        character = state.get('character') or {}
+        name = str(character.get('name') or state.get('folder') or '')
+        if name == wanted:
+            return state
+    return None
 
 
 def copy_rotations(rotation_source, rotation_map):
-    """Always keep the current Aug-18 rotation art, including sword rotations."""
-    destination = OUT / rotation_source / 'rotations'
-    destination.mkdir(parents=True, exist_ok=True)
-    padding = {}
-    canvas = {}
+    dest = OUT / rotation_source / 'rotations'
+    dest.mkdir(parents=True, exist_ok=True)
+    padding, canvas = {}, {}
     for direction in DIRECTIONS:
-        relative_path = rotation_map.get(direction)
-        if not relative_path:
+        relative = rotation_map.get(direction)
+        if not relative:
             raise ValueError(f'{rotation_source}: missing rotation {direction}')
-        source = resolve_source(relative_path, EXTRACT_ROOT)
-        shutil.copy2(source, destination / f'{direction}.png')
-        metrics = png_ground_metrics(source)
-        padding[direction] = metrics['bottomPadding']
-        canvas[direction] = [metrics['width'], metrics['height']]
+        source = resolve(BASE_ROOT, relative)
+        shutil.copy2(source, dest / f'{direction}.png')
+        width, height, bottom_padding = png_metrics(source)
+        padding[direction] = bottom_padding
+        canvas[direction] = [width, height]
     return padding, canvas
 
 
-def action_meta(action, source_state, source_animation, source_archive, rotation_source, rotation_padding, rotation_canvas):
+def copy_sequence(action, direction, relatives, source_root):
+    sources = sorted((resolve(source_root, relative) for relative in relatives), key=frame_number)
+    dest = OUT / action / direction
+    dest.mkdir(parents=True, exist_ok=True)
+    paddings, canvases = [], []
+    for index, source in enumerate(sources):
+        shutil.copy2(source, dest / f'frame_{index:03d}.png')
+        width, height, bottom_padding = png_metrics(source)
+        paddings.append(bottom_padding)
+        canvases.append([width, height])
+    return len(sources), paddings, canvases
+
+
+def build_action(action, state_name, animation_name, directional, source_root, source_archive,
+                 rotation_source, rotation_padding, rotation_canvas):
+    if not directional.get('east'):
+        raise ValueError(f'{action}: missing east frames')
     meta = dict(DEFAULTS[action])
     meta.update({
-        'sourceState': source_state,
-        'sourceAnimation': source_animation,
+        'sourceState': state_name,
+        'sourceAnimation': animation_name,
         'sourceArchive': source_archive,
         'rotationSource': rotation_source,
         'rotationArchive': BASE_ARCHIVE.name,
@@ -225,145 +203,104 @@ def action_meta(action, source_state, source_animation, source_archive, rotation
         'rotationBottomPadding': rotation_padding,
         'rotationCanvas': rotation_canvas,
         'mappedToGameplay': True,
+        'frameBottomPadding': {},
+        'frameCanvas': {},
     })
+    east_count, east_padding, east_canvas = copy_sequence(action, 'east', directional.get('east') or [], source_root)
+    meta['east'] = east_count
+    meta['frameBottomPadding']['east'] = east_padding
+    meta['frameCanvas']['east'] = east_canvas
+    west_frames = directional.get('west') or []
+    if west_frames:
+        west_count, west_padding, west_canvas = copy_sequence(action, 'west', west_frames, source_root)
+        meta['west'] = west_count
+        meta['frameBottomPadding']['west'] = west_padding
+        meta['frameCanvas']['west'] = west_canvas
+    elif action == 'land':
+        meta['west'] = 0
+        meta['frameBottomPadding']['west'] = []
+        meta['frameCanvas']['west'] = []
+        meta['mirrorWest'] = True
+        meta['mirrorSourceDirection'] = 'east'
+    else:
+        raise ValueError(f'{action}: missing west frames')
     return meta
 
 
-def find_state(metadata, wanted_name):
-    for state in metadata.get('states') or []:
-        character = state.get('character') or {}
-        state_name = str(character.get('name') or state.get('folder') or '')
-        if state_name == wanted_name:
-            return state
-    return None
-
-
-def copy_animation_action(action, state_name, animation_name, directional_frames, source_root, source_archive,
-                          rotation_source, rotation_padding, rotation_canvas, issues):
-    try:
-        east_sources = [resolve_source(p, source_root) for p in directional_frames.get('east', [])]
-        west_sources = [resolve_source(p, source_root) for p in directional_frames.get('west', [])]
-        if not east_sources:
-            raise ValueError('missing east animation frames')
-        meta = action_meta(
-            action, state_name, animation_name, source_archive,
-            rotation_source, rotation_padding, rotation_canvas
-        )
-        east = copy_sequence(action, 'east', east_sources)
-        meta['east'] = east['count']
-        meta.setdefault('frameBottomPadding', {})['east'] = east['bottomPadding']
-        meta.setdefault('frameCanvas', {})['east'] = east['canvas']
-
-        if west_sources:
-            west = copy_sequence(action, 'west', west_sources)
-            meta['west'] = west['count']
-            meta['frameBottomPadding']['west'] = west['bottomPadding']
-            meta['frameCanvas']['west'] = west['canvas']
-        elif action == 'land':
-            meta['west'] = 0
-            meta['mirrorWest'] = True
-            meta['mirrorSourceDirection'] = 'east'
-            meta['frameBottomPadding']['west'] = []
-            meta['frameCanvas']['west'] = []
-        else:
-            raise ValueError('missing west animation frames')
-        return meta
-    except Exception as exc:
-        issues.append(f'{state_name}/{animation_name}: {exc}')
-        return None
-
-
 def main():
-    clean_extract()
-    base_metadata_path = EXTRACT_ROOT / 'metadata.json'
-    attack_metadata_path = ATTACK_EXTRACT_ROOT / 'metadata.json'
-    if not base_metadata_path.exists():
-        raise SystemExit(f'{BASE_ARCHIVE} is missing root metadata.json')
-    if not attack_metadata_path.exists():
-        raise SystemExit(f'{ATTACK_ARCHIVE} is missing root metadata.json')
+    extract(BASE_ARCHIVE, BASE_ROOT)
+    extract(ATTACK_ARCHIVE, ATTACK_ROOT)
+    if OUT.exists():
+        shutil.rmtree(OUT)
+    OUT.mkdir(parents=True, exist_ok=True)
 
-    base_metadata = json.loads(base_metadata_path.read_text())
-    attack_metadata = json.loads(attack_metadata_path.read_text())
-    states = base_metadata.get('states') or []
-    if not states:
-        raise SystemExit('Current protagonist metadata contains no states[]')
-    old_sword_state = find_state(attack_metadata, 'Sword attack')
-    if not old_sword_state:
-        raise SystemExit(f'{ATTACK_ARCHIVE} contains no Sword attack state')
+    base_metadata = json.loads((BASE_ROOT / 'metadata.json').read_text())
+    attack_metadata = json.loads((ATTACK_ROOT / 'metadata.json').read_text())
+    old_sword = find_state(attack_metadata, 'Sword attack')
+    if not old_sword:
+        fail('attack replacement archive has no Sword attack state')
+    old_animations = ((old_sword.get('frames') or {}).get('animations') or {})
+    if set(old_animations) != set(SWORD_SEQUENCE_ACTIONS):
+        fail(f'old sword animation set changed: {sorted(old_animations)}')
 
     manifest = {}
+    rotation_cache = {}
     issues = []
-    copied_rotation_sources = {}
 
-    for state in states:
+    for state in base_metadata.get('states') or []:
         character = state.get('character') or {}
         state_name = str(character.get('name') or state.get('folder') or '')
         if character.get('directions') != 8:
-            issues.append(f'{state_name}: expected 8 directions, found {character.get("directions")!r}')
+            issues.append(f'{state_name}: expected 8 directions')
+            continue
         frames = state.get('frames') or {}
         animations = frames.get('animations') or {}
-        rotation_map = frames.get('rotations') or {}
-        if not animations:
-            issues.append(f'{state_name}: no animation sequences found')
-            continue
-
+        rotations = frames.get('rotations') or {}
         rotation_source = 'sword_attack' if state_name == 'Sword attack' else STATE_ACTIONS.get(state_name)
         if not rotation_source:
-            issues.append(f'Unknown protagonist state: {state_name!r}')
+            issues.append(f'unknown state {state_name!r}')
             continue
-
-        if rotation_source not in copied_rotation_sources:
+        if rotation_source not in rotation_cache:
             try:
-                copied_rotation_sources[rotation_source] = copy_rotations(rotation_source, rotation_map)
+                rotation_cache[rotation_source] = copy_rotations(rotation_source, rotations)
             except Exception as exc:
-                issues.append(f'{state_name} rotations: {exc}')
+                issues.append(str(exc))
                 continue
-        rotation_padding, rotation_canvas = copied_rotation_sources[rotation_source]
+        rotation_padding, rotation_canvas = rotation_cache[rotation_source]
 
         if state_name == 'Sword attack':
-            old_character = old_sword_state.get('character') or {}
-            if old_character.get('directions') != 8:
-                issues.append(f'Old Sword attack: expected 8 directions, found {old_character.get("directions")!r}')
-            old_animations = ((old_sword_state.get('frames') or {}).get('animations') or {})
-            seen = set(old_animations)
-            expected = set(SWORD_SEQUENCE_ACTIONS) | IGNORED_OLD_SWORD_SEQUENCES
-            unexpected = sorted(seen - expected)
-            missing_old = sorted(set(SWORD_SEQUENCE_ACTIONS) - seen)
-            if unexpected:
-                issues.append('Old Sword attack contains unexpected animations: ' + ', '.join(unexpected))
-            if missing_old:
-                issues.append('Old Sword attack is missing required animations: ' + ', '.join(missing_old))
             for animation_name, action in SWORD_SEQUENCE_ACTIONS.items():
-                directional_frames = old_animations.get(animation_name)
-                if not directional_frames:
-                    continue
-                meta = copy_animation_action(
-                    action, 'Sword attack', animation_name, directional_frames,
-                    ATTACK_EXTRACT_ROOT, ATTACK_ARCHIVE.name,
-                    rotation_source, rotation_padding, rotation_canvas, issues
-                )
-                if meta:
-                    manifest[action] = meta
+                try:
+                    manifest[action] = build_action(
+                        action, state_name, animation_name, old_animations[animation_name],
+                        ATTACK_ROOT, ATTACK_ARCHIVE.name,
+                        rotation_source, rotation_padding, rotation_canvas
+                    )
+                except Exception as exc:
+                    issues.append(str(exc))
             continue
 
         action = STATE_ACTIONS[state_name]
         if len(animations) != 1:
-            issues.append(f'{state_name}: expected exactly one current animation, found {len(animations)}')
+            issues.append(f'{state_name}: expected one animation, found {len(animations)}')
             continue
-        animation_name, directional_frames = next(iter(animations.items()))
-        meta = copy_animation_action(
-            action, state_name, animation_name, directional_frames,
-            EXTRACT_ROOT, BASE_ARCHIVE.name,
-            rotation_source, rotation_padding, rotation_canvas, issues
-        )
-        if meta:
-            manifest[action] = meta
+        animation_name, directional = next(iter(animations.items()))
+        try:
+            manifest[action] = build_action(
+                action, state_name, animation_name, directional,
+                BASE_ROOT, BASE_ARCHIVE.name,
+                rotation_source, rotation_padding, rotation_canvas
+            )
+        except Exception as exc:
+            issues.append(str(exc))
 
-    required = ('idle', 'run', 'jump', 'fall', 'land', 'attack_1', 'attack_2', 'attack_3', 'dash', 'hit', 'death')
-    missing = [action for action in required if action not in manifest]
+    required = set(DEFAULTS)
+    missing = sorted(required - set(manifest))
+    extra = sorted(set(manifest) - required)
     if missing:
-        issues.append('Missing required runtime actions: ' + ', '.join(missing))
-
+        issues.append('missing runtime actions: ' + ', '.join(missing))
+    if extra:
+        issues.append('unexpected runtime actions: ' + ', '.join(extra))
     if issues:
         print('Protagonist archive validation failed:', file=sys.stderr)
         for issue in issues:
@@ -371,17 +308,11 @@ def main():
         raise SystemExit(1)
 
     (OUT / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
-    MANIFEST_JS.write_text(
-        'export const PIXELLAB_MANIFEST = ' + json.dumps(manifest, separators=(',', ':')) + ';\n'
-    )
-
+    MANIFEST_JS.write_text('export const PIXELLAB_MANIFEST = ' + json.dumps(manifest, separators=(',', ':')) + ';\n')
     print('Current protagonist archive:', BASE_ARCHIVE)
-    print('Current export date:', base_metadata.get('export_date'))
     print('Attack replacement archive:', ATTACK_ARCHIVE)
-    print('Attack export date:', attack_metadata.get('export_date'))
     print('Runtime actions:', ', '.join(manifest))
-    print('Restored attack animations:', ', '.join(SWORD_SEQUENCE_ACTIONS))
-    print(json.dumps(manifest, indent=2))
+    print('Sword visuals:', ', '.join(SWORD_SEQUENCE_ACTIONS.values()))
 
 
 if __name__ == '__main__':
