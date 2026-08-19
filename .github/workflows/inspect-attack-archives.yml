@@ -16,26 +16,36 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import json, zipfile
+          import json, zipfile, shutil
 
           out=[]
+          visuals=Path('attack-visuals')
+          if visuals.exists(): shutil.rmtree(visuals)
+          visuals.mkdir()
           candidates=[]
           for p in sorted(Path('.').glob('*.zip')):
               low=p.name.lower()
               if 'protagonist' in low or 'darkbound' in low:
                   candidates.append(p)
 
+          visual_archives={
+              'Protagonist update.zip':'previous_full_export',
+              'Protagonist sprite updates.zip':'previous_update_pack',
+              'Protagonist production sprites.zip':'production_pack',
+              'Sprite updates protagonist .zip':'current_export',
+          }
+
           for p in candidates:
               out.append(f'\n===== {p.name} ({p.stat().st_size} bytes) =====')
               try:
                   with zipfile.ZipFile(p) as z:
                       names=z.namelist()
-                      png=[n for n in names if n.lower().endswith('.png')]
-                      gif=[n for n in names if n.lower().endswith('.gif')]
+                      png=[n for n in names if n.lower().endswith('.png') and '__MACOSX' not in n]
+                      gif=[n for n in names if n.lower().endswith('.gif') and '__MACOSX' not in n]
                       out.append(f'files={len(names)} png={len(png)} gif={len(gif)}')
-                      metadata=[n for n in names if n.lower().endswith('metadata.json')]
+                      metadata=[n for n in names if n.lower().endswith('metadata.json') and '__MACOSX' not in n]
                       if metadata:
-                          for m in metadata[:3]:
+                          for m in metadata:
                               out.append(f'metadata={m}')
                               try:
                                   data=json.loads(z.read(m))
@@ -50,13 +60,18 @@ jobs:
                                           out.append(f'    ANIM {aname} {counts}')
                               except Exception as exc:
                                   out.append(f'  metadata parse error: {exc}')
-                      attack_names=[n for n in names if any(k in n.lower() for k in ('attack','slash','sword','heavy','light'))]
+                      attack_names=[n for n in names if '__MACOSX' not in n and any(k in n.lower() for k in ('attack','slash','sword','heavy','light'))]
                       out.append(f'attack_related_entries={len(attack_names)}')
-                      for n in attack_names[:120]:
+                      for n in attack_names[:180]:
                           out.append('  '+n)
-                      if not attack_names:
-                          for n in names[:50]:
-                              out.append('  SAMPLE '+n)
+
+                      if p.name in visual_archives:
+                          dest=visuals/visual_archives[p.name]
+                          for n in attack_names:
+                              if not n.lower().endswith('.png'): continue
+                              target=dest/n
+                              target.parent.mkdir(parents=True,exist_ok=True)
+                              target.write_bytes(z.read(n))
               except Exception as exc:
                   out.append(f'ERROR {exc}')
 
@@ -66,4 +81,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: protagonist-archive-inspection
-          path: archive-inspection.txt
+          path: |
+            archive-inspection.txt
+            attack-visuals
