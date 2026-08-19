@@ -17,7 +17,9 @@ export const TUNING = Object.freeze({
   rollCooldownMs: 680,
 
   comboResetMs: 650,
-  attackDurationsMs: [195, 210, 540],
+  // Keep the established contact windows but trim dead recovery time so queued
+  // attacks transition more fluidly, especially after the heavy third swing.
+  attackDurationsMs: [185, 195, 430],
   attackActiveStartMs: [42, 48, 68],
   attackActiveEndMs: [122, 138, 190],
   attackRanges: [80, 88, 104],
