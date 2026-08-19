@@ -6,6 +6,9 @@ import struct
 import sys
 
 SOURCE_ROOT = Path('.protagonist-production')
+ATTACK_SOURCE_ROOT = Path('.protagonist-attack-replacements')
+BASE_ARCHIVE = 'Sprite updates protagonist .zip'
+ATTACK_ARCHIVE = 'Protagonist update.zip'
 OUT = Path('assets/v05/pixellab_protagonist')
 MANIFEST_PATH = OUT / 'manifest.json'
 DIRECTIONS = ('east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east')
@@ -15,15 +18,21 @@ EXPECTED_COUNTS = {
     'jump': (9, 9),
     'fall': (9, 9),
     'land': (9, 0),
-    'attack_1': (8, 8),
+    'attack_1': (9, 8),
     'attack_2': (8, 8),
     'attack_3': (8, 8),
     'dash': (9, 9),
     'hit': (8, 8),
     'death': (8, 8),
 }
+EXPECTED_ATTACK_ANIMATIONS = {
+    'attack_1': 'The_character_shifts_their_weight_forward_driving',
+    'attack_2': 'The_warrior_pivots_his_hips_and_drives_his_sword_i',
+    'attack_3': 'The_character_shifts_their_weight_forward_lifting',
+}
+IGNORED_OLD_ATTACK = 'The_character_firmly_pivots_their_weight_onto_thei'
 EXPECTED_FORMATS = Counter({
-    (256, 256, 8, 6): 193,
+    (256, 256, 8, 6): 194,
     (256, 168, 8, 6): 32,
     (228, 228, 8, 6): 16,
     (168, 168, 8, 6): 8,
@@ -47,7 +56,7 @@ def png_header(path):
     return width, height, data[24], data[25]
 
 
-def verify_grounding(meta, action, direction, expected_count):
+def verify_grounding(meta, action, direction):
     source_direction = direction
     if direction == 'west' and meta.get('mirrorWest'):
         source_direction = meta.get('mirrorSourceDirection', 'east')
@@ -68,11 +77,62 @@ def verify_grounding(meta, action, direction, expected_count):
             fail(f'{action}/{direction} frame {index}: invalid canvas {dims!r}')
 
 
+def current_non_attack_pngs():
+    kept = []
+    for path in SOURCE_ROOT.rglob('*.png'):
+        if '__MACOSX' in path.parts:
+            continue
+        rel = path.relative_to(SOURCE_ROOT)
+        lowered = tuple(part.lower() for part in rel.parts)
+        if len(lowered) >= 2 and lowered[0] == 'sword_attack' and lowered[1] == 'animations':
+            continue
+        kept.append(path)
+    return sorted(kept)
+
+
+def selected_old_attack_pngs():
+    metadata_path = ATTACK_SOURCE_ROOT / 'metadata.json'
+    if not metadata_path.exists():
+        fail(f'missing old attack metadata: {metadata_path}')
+    metadata = json.loads(metadata_path.read_text())
+    sword_state = None
+    for state in metadata.get('states') or []:
+        character = state.get('character') or {}
+        name = str(character.get('name') or state.get('folder') or '')
+        if name == 'Sword attack':
+            sword_state = state
+            break
+    if not sword_state:
+        fail('old attack archive contains no Sword attack state')
+    animations = ((sword_state.get('frames') or {}).get('animations') or {})
+    if IGNORED_OLD_ATTACK not in animations:
+        fail('expected alternate old sword sequence is missing; archive identity may have changed')
+
+    selected = []
+    for action, animation_name in EXPECTED_ATTACK_ANIMATIONS.items():
+        directional = animations.get(animation_name)
+        if not directional:
+            fail(f'{action}: old source animation missing: {animation_name}')
+        for direction in ('east', 'west'):
+            paths = directional.get(direction) or []
+            expected = EXPECTED_COUNTS[action][0 if direction == 'east' else 1]
+            if len(paths) != expected:
+                fail(f'{action}/{direction}: old metadata expected {expected} paths, got {len(paths)}')
+            for relative in paths:
+                source = ATTACK_SOURCE_ROOT / relative
+                if not source.exists():
+                    fail(f'{action}/{direction}: missing old source file {relative}')
+                selected.append(source)
+    return selected
+
+
 def main():
     if not MANIFEST_PATH.exists():
         fail(f'missing generated manifest: {MANIFEST_PATH}')
     if not SOURCE_ROOT.exists():
-        fail('source extraction is missing; run scripts/normalize_protagonist.py first')
+        fail('current source extraction is missing; run scripts/normalize_protagonist.py first')
+    if not ATTACK_SOURCE_ROOT.exists():
+        fail('attack replacement extraction is missing; run scripts/normalize_protagonist.py first')
 
     manifest = json.loads(MANIFEST_PATH.read_text())
     if set(EXPECTED_COUNTS) != set(manifest):
@@ -87,7 +147,7 @@ def main():
             paths = sorted((OUT / action / direction).glob('frame_*.png'))
             if len(paths) != expected:
                 fail(f'{action}/{direction}: manifest/files disagree ({count} vs {len(paths)})')
-            verify_grounding(meta, action, direction, expected)
+            verify_grounding(meta, action, direction)
         if meta.get('mappedToGameplay') is not True:
             fail(f'{action}: required action is not mapped to gameplay')
         rotations = tuple(meta.get('rotations') or ())
@@ -99,51 +159,71 @@ def main():
             fail(f'{action}: incomplete rotation grounding metadata')
         if any((not isinstance(v, int) or v < 0) for v in rotation_padding.values()):
             fail(f'{action}: invalid rotation bottom padding')
+        if meta.get('rotationArchive') != BASE_ARCHIVE:
+            fail(f'{action}: rotations must remain sourced from current archive')
 
-    # The new landing export is the only directional animation omission: it has
-    # nine east frames, no west frames, but still supplies all eight rotations.
+        if action.startswith('attack_'):
+            if meta.get('sourceArchive') != ATTACK_ARCHIVE:
+                fail(f'{action}: expected old attack archive provenance')
+            if meta.get('sourceAnimation') != EXPECTED_ATTACK_ANIMATIONS[action]:
+                fail(f'{action}: wrong restored attack sequence {meta.get("sourceAnimation")!r}')
+        else:
+            if meta.get('sourceArchive') != BASE_ARCHIVE:
+                fail(f'{action}: non-attack animation was not preserved from current archive')
+
     land = manifest['land']
     if not land.get('mirrorWest') or land.get('mirrorSourceDirection') != 'east':
-        fail('landing west must explicitly mirror the supplied east-only sequence')
+        fail('landing west must explicitly mirror the supplied current east-only sequence')
     for action, meta in manifest.items():
         if action != 'land' and (meta.get('mirrorEast') or meta.get('mirrorWest')):
             fail(f'{action}: unexpected animation mirroring; dedicated directional frames exist')
 
     attack_sources = {manifest[a].get('rotationSource') for a in ('attack_1', 'attack_2', 'attack_3')}
     if attack_sources != {'sword_attack'}:
-        fail(f'three sword attacks must share the supplied Sword attack rotation set, got {attack_sources}')
+        fail(f'three sword attacks must share the current Sword attack rotation set, got {attack_sources}')
 
     unique_rotation_sources = {meta.get('rotationSource') or action for action, meta in manifest.items()}
     if len(unique_rotation_sources) != 9:
-        fail(f'expected 9 unique supplied rotation sets, got {sorted(unique_rotation_sources)}')
+        fail(f'expected 9 unique current rotation sets, got {sorted(unique_rotation_sources)}')
     for source in unique_rotation_sources:
         rotation_dir = OUT / source / 'rotations'
         paths = sorted(rotation_dir.glob('*.png'))
         if {p.stem for p in paths} != set(DIRECTIONS):
             fail(f'{source}: expected all eight rotation PNGs')
 
-    source_pngs = sorted(p for p in SOURCE_ROOT.rglob('*.png') if '__MACOSX' not in p.parts)
+    current_pngs = sorted(p for p in SOURCE_ROOT.rglob('*.png') if '__MACOSX' not in p.parts)
+    old_pngs = sorted(p for p in ATTACK_SOURCE_ROOT.rglob('*.png') if '__MACOSX' not in p.parts)
     output_pngs = sorted(OUT.rglob('*.png'))
-    if len(source_pngs) != 249:
-        fail(f'expected 249 latest source PNGs, found {len(source_pngs)}')
-    if len(output_pngs) != 249:
-        fail(f'expected 249 normalized PNGs, found {len(output_pngs)}')
+    if len(current_pngs) != 249:
+        fail(f'expected 249 current source PNGs, found {len(current_pngs)}')
+    if len(old_pngs) != 249:
+        fail(f'expected 249 old source PNGs, found {len(old_pngs)}')
 
-    # No source art may be altered, omitted, or duplicated during normalization.
-    if Counter(map(digest, source_pngs)) != Counter(map(digest, output_pngs)):
-        fail('normalized PNG bytes do not exactly match the latest uploaded archive')
+    kept_current = current_non_attack_pngs()
+    selected_attacks = selected_old_attack_pngs()
+    if len(kept_current) != 201:
+        fail(f'expected 201 preserved current PNGs after excluding current sword animations, found {len(kept_current)}')
+    if len(selected_attacks) != 49:
+        fail(f'expected 49 selected old attack PNGs, found {len(selected_attacks)}')
+    if len(output_pngs) != 250:
+        fail(f'expected 250 normalized PNGs, found {len(output_pngs)}')
+
+    expected_hashes = Counter(map(digest, kept_current + selected_attacks))
+    output_hashes = Counter(map(digest, output_pngs))
+    if expected_hashes != output_hashes:
+        fail('output art is not an exact byte-for-byte composition of current non-attack art plus selected old attacks')
 
     formats = Counter(png_header(path) for path in output_pngs)
     if formats != EXPECTED_FORMATS:
         fail(f'unexpected output PNG dimensions/format: {formats}')
 
-    print('Latest protagonist verification passed.')
+    print('Attack-only protagonist replacement verification passed.')
     print(f'Actions: {json.dumps(EXPECTED_COUNTS, sort_keys=True)}')
-    print('Sword combo: 3 distinct supplied attack sequences mapped to combo steps 1/2/3')
-    print('Landing: east-only sequence documented and mirrored only for west gameplay')
-    print('Grounding: per-frame and per-rotation bottom-padding metadata present')
-    print('Rotation art: 9 sets x 8 directions = 72 supplied rotation PNGs')
-    print('Artwork integrity: 249/249 normalized PNGs are byte-identical to source')
+    print('Preserved: 201 current non-attack/rotation PNGs byte-for-byte')
+    print('Restored: 49 old attack PNGs byte-for-byte across combo steps 1/2/3')
+    print('Excluded: current Sword attack animation frames and one unused old alternate swing')
+    print('Landing, grounding metadata, current rotations, and non-attack animations remain intact')
+    print('Artwork integrity: 250/250 normalized PNGs match the intended two-archive composition')
 
 
 if __name__ == '__main__':
