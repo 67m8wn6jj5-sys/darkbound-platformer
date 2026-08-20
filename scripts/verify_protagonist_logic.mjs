@@ -59,14 +59,18 @@ function state(name, mutator, expected, time = 1200) {
 // Keep the +10% visual scale and its matching grounding math from PR #3.
 assert.match(readFileSync('src/GameSceneV17.js', 'utf8'), /const ART_SCALE=\.396;/);
 
-// Only the three sword sequences come from the prior protagonist export. All
-// other current art and current rotation poses remain sourced from Aug-18.
+// The live three-hit combo deliberately mixes the two approved archives:
+// old opening slash -> old upward/lifting cut -> current overhead finisher.
+// The disliked hip-pivot sequence must remain source-only and never map live.
 assert.equal(PIXELLAB_MANIFEST.attack_1.sourceAnimation, 'The_character_shifts_their_weight_forward_driving');
-assert.equal(PIXELLAB_MANIFEST.attack_2.sourceAnimation, 'The_warrior_pivots_his_hips_and_drives_his_sword_i');
-assert.equal(PIXELLAB_MANIFEST.attack_3.sourceAnimation, 'The_character_shifts_their_weight_forward_lifting');
+assert.equal(PIXELLAB_MANIFEST.attack_2.sourceAnimation, 'The_character_shifts_their_weight_forward_lifting');
+assert.equal(PIXELLAB_MANIFEST.attack_3.sourceAnimation, 'The_character_raises_their_sword_in_a_swift_powerf');
+assert.equal(PIXELLAB_MANIFEST.attack_1.sourceArchive, 'Protagonist update.zip');
+assert.equal(PIXELLAB_MANIFEST.attack_2.sourceArchive, 'Protagonist update.zip');
+assert.equal(PIXELLAB_MANIFEST.attack_3.sourceArchive, 'Sprite updates protagonist .zip');
 for (const action of ['attack_1','attack_2','attack_3']) {
-  assert.equal(PIXELLAB_MANIFEST[action].sourceArchive, 'Protagonist update.zip');
   assert.equal(PIXELLAB_MANIFEST[action].rotationArchive, 'Sprite updates protagonist .zip');
+  assert.doesNotMatch(PIXELLAB_MANIFEST[action].sourceAnimation, /pivots_his_hips/, 'hip-pivot sword visual must not be live');
 }
 for (const action of ['idle','run','jump','fall','land','dash','hit','death']) {
   assert.equal(PIXELLAB_MANIFEST[action].sourceArchive, 'Sprite updates protagonist .zip');
@@ -99,7 +103,7 @@ state('hit priority over attack', s => { s.hitAnimEndsAt = 1500; s.state = 'atta
 state('attack priority over locomotion', s => { s.state = 'attack-2'; s.comboStep = 1; }, 'attack_2');
 
 // Rapid triple-tap still preserves two buffered presses, guaranteeing the three
-// restored sword sequences play visibly in order rather than collapsing inputs.
+// sword sequences play visibly in order rather than collapsing inputs.
 {
   const s=scene({attackStartsAt:1000,attackEndsAt:1195,comboStep:0});
   s.queueAttack(1050);
@@ -157,8 +161,8 @@ state('attack priority over locomotion', s => { s.state = 'attack-2'; s.comboSte
   assert.equal(s.facing, 1);
 }
 
-// Restored attacks retain the existing gameplay active windows. Attack 1 has an
-// extra recovery frame eastward, but blade-contact frames remain 2 through 6.
+// The replacement visuals retain the existing gameplay active windows. Attack
+// 2 now uses the upward/lifting sequence, with blade-contact frames 4 through 6.
 {
   const a1 = scene({ state: 'attack-1', comboStep: 0, attackStartsAt: 1000 });
   assert.equal(a1.attackFrame('attack_1', 'east', 1042), 2);
@@ -186,4 +190,4 @@ state('attack priority over locomotion', s => { s.state = 'attack-2'; s.comboSte
   assert.equal(s.frameForState('death', 'west', 9000), 7);
 }
 
-console.log('Attack-only protagonist replacement, scale, combo, and grounding verification passed.');
+console.log('Mixed-archive protagonist combo, scale, and grounding verification passed.');
