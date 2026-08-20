@@ -26,13 +26,26 @@ STATE_ACTIONS = {
     'Dash attack': 'dash',
 }
 
-# All four older sword sequences are preserved. Three remain the canonical combo
-# and the fourth is exposed as attack_alt for V18's controlled visual variation.
-SWORD_SEQUENCE_ACTIONS = {
+# Keep the preferred old opening slash, replace the disliked hip-pivot follow-up
+# with the old upward/lifting cut, and use the current archive's distinct
+# overhead/downward sequence as the heavy finisher. The old waist-height sweep
+# remains archived as attack_alt for provenance but is not selected by gameplay.
+OLD_SWORD_SEQUENCE_ACTIONS = {
     'The_character_shifts_their_weight_forward_driving': 'attack_1',
-    'The_warrior_pivots_his_hips_and_drives_his_sword_i': 'attack_2',
-    'The_character_shifts_their_weight_forward_lifting': 'attack_3',
+    'The_character_shifts_their_weight_forward_lifting': 'attack_2',
     'The_character_firmly_pivots_their_weight_onto_thei': 'attack_alt',
+}
+CURRENT_FINISHER_ANIMATION = 'The_character_raises_their_sword_in_a_swift_powerf'
+EXPECTED_OLD_SWORD_ANIMATIONS = {
+    'The_character_shifts_their_weight_forward_driving',
+    'The_warrior_pivots_his_hips_and_drives_his_sword_i',
+    'The_character_firmly_pivots_their_weight_onto_thei',
+    'The_character_shifts_their_weight_forward_lifting',
+}
+EXPECTED_CURRENT_SWORD_ANIMATIONS = {
+    'The_character_shifts_their_weight_slightly_to_plan',
+    'The_warrior_pivots_his_hips_and_drives_his_sword_i',
+    CURRENT_FINISHER_ANIMATION,
 }
 
 DEFAULTS = {
@@ -42,9 +55,9 @@ DEFAULTS = {
     'fall': {'fps': 12, 'loop': False, 'gameplay': 'falling'},
     'land': {'fps': 24, 'loop': False, 'gameplay': 'landing'},
     'attack_1': {'fps': 18, 'loop': False, 'gameplay': 'combo attack 1'},
-    'attack_2': {'fps': 18, 'loop': False, 'gameplay': 'combo attack 2'},
+    'attack_2': {'fps': 18, 'loop': False, 'gameplay': 'combo attack 2 / upward cut'},
     'attack_3': {'fps': 16, 'loop': False, 'gameplay': 'combo attack 3 / heavy finisher'},
-    'attack_alt': {'fps': 18, 'loop': False, 'gameplay': 'alternate combo visual'},
+    'attack_alt': {'fps': 18, 'loop': False, 'gameplay': 'archived alternate combo visual'},
     'dash': {'fps': 18, 'loop': False, 'gameplay': 'dodge / evade'},
     'hit': {'fps': 16, 'loop': False, 'gameplay': 'damage / knockback'},
     'death': {'fps': 10, 'loop': False, 'gameplay': 'death'},
@@ -236,11 +249,17 @@ def main():
 
     base_metadata = json.loads((BASE_ROOT / 'metadata.json').read_text())
     attack_metadata = json.loads((ATTACK_ROOT / 'metadata.json').read_text())
+    current_sword = find_state(base_metadata, 'Sword attack')
     old_sword = find_state(attack_metadata, 'Sword attack')
+    if not current_sword:
+        fail('current protagonist archive has no Sword attack state')
     if not old_sword:
         fail('attack replacement archive has no Sword attack state')
+    current_animations = ((current_sword.get('frames') or {}).get('animations') or {})
     old_animations = ((old_sword.get('frames') or {}).get('animations') or {})
-    if set(old_animations) != set(SWORD_SEQUENCE_ACTIONS):
+    if set(current_animations) != EXPECTED_CURRENT_SWORD_ANIMATIONS:
+        fail(f'current sword animation set changed: {sorted(current_animations)}')
+    if set(old_animations) != EXPECTED_OLD_SWORD_ANIMATIONS:
         fail(f'old sword animation set changed: {sorted(old_animations)}')
 
     manifest = {}
@@ -269,7 +288,7 @@ def main():
         rotation_padding, rotation_canvas = rotation_cache[rotation_source]
 
         if state_name == 'Sword attack':
-            for animation_name, action in SWORD_SEQUENCE_ACTIONS.items():
+            for animation_name, action in OLD_SWORD_SEQUENCE_ACTIONS.items():
                 try:
                     manifest[action] = build_action(
                         action, state_name, animation_name, old_animations[animation_name],
@@ -278,6 +297,15 @@ def main():
                     )
                 except Exception as exc:
                     issues.append(str(exc))
+            try:
+                manifest['attack_3'] = build_action(
+                    'attack_3', state_name, CURRENT_FINISHER_ANIMATION,
+                    current_animations[CURRENT_FINISHER_ANIMATION],
+                    BASE_ROOT, BASE_ARCHIVE.name,
+                    rotation_source, rotation_padding, rotation_canvas
+                )
+            except Exception as exc:
+                issues.append(str(exc))
             continue
 
         action = STATE_ACTIONS[state_name]
@@ -312,7 +340,8 @@ def main():
     print('Current protagonist archive:', BASE_ARCHIVE)
     print('Attack replacement archive:', ATTACK_ARCHIVE)
     print('Runtime actions:', ', '.join(manifest))
-    print('Sword visuals:', ', '.join(SWORD_SEQUENCE_ACTIONS.values()))
+    print('Live sword combo: attack_1 (old opening), attack_2 (old upward cut), attack_3 (current overhead finisher)')
+    print('Archived non-live sword visual: attack_alt')
 
 
 if __name__ == '__main__':
