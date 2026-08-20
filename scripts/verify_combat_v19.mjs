@@ -13,12 +13,13 @@ process.on('exit',()=>{for(const path of created){try{unlinkSync(path);}catch{}}
 globalThis.Phaser={Scene:class Scene{},BlendModes:{ADD:'ADD'},Math:{Between:(a)=>a,Clamp:(value,min,max)=>Math.max(min,Math.min(max,value))},Utils:{Array:{GetRandom:(values)=>values[0],Shuffle:(values)=>values}}};
 
 const {GameSceneV19,COMBAT_V19,chooseMeleeIntent,chooseTrollIntent}=await import('../src/GameSceneV19.js');
-
 const mainSource=readFileSync('src/main.js','utf8');
+const v22Source=readFileSync('src/GameSceneV22.js','utf8');
 const v21Source=readFileSync('src/GameSceneV21.js','utf8');
 const v20Source=readFileSync('src/GameSceneV20.js','utf8');
-assert.match(mainSource,/GameSceneV21/,'main must boot the current combat scene');
-assert.match(v21Source,/extends GameSceneV20/,'current scene must preserve Combat Pass 2');
+assert.match(mainSource,/GameSceneV22/,'main must boot the current environment/combat scene');
+assert.match(v22Source,/extends GameSceneV21/,'current scene must preserve V21 combat');
+assert.match(v21Source,/extends GameSceneV20/,'V21 must preserve Combat Pass 2');
 assert.match(v20Source,/extends GameSceneV19/,'Combat Pass 2 must preserve Pass 1 through inheritance');
 assert.ok(COMBAT_V19.melee.windupMs>=260,'melee tell must remain readable');
 assert.ok(COMBAT_V19.melee.lungeSpeed>COMBAT_V19.melee.approachSpeedMin,'melee lunge must be a committed burst');
