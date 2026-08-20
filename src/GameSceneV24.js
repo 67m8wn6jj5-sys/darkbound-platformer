@@ -143,14 +143,35 @@ function clampStagePlatform(spec){
   };
 }
 
+export function activationZoneForX(x){
+  if(x>=STAGE_FLOW_V24.activationThresholds[2])return 2;
+  if(x>=STAGE_FLOW_V24.activationThresholds[1])return 1;
+  return 0;
+}
+
 function groundSpawnsForStage(){
-  return[736,928,1120,1312,1504,1696,1888,2080,2272,2432].map(x=>({
+  // Interleave zones so even a three-enemy encounter occupies the beginning,
+  // middle, and end of the expanded stage instead of clustering near entry.
+  return[736,1280,1984,928,1536,2272,1024,1696,2432].map(x=>({
     x:snap(x),y:560,minX:snap(x-104),maxX:snap(x+104),kind:'ground'
   }));
 }
 
+function spreadAnchorsAcrossZones(anchors){
+  const buckets=[[],[],[]];
+  for(const anchor of anchors)buckets[activationZoneForX(anchor.x)].push(anchor);
+  const spread=[];
+  while(buckets.some(bucket=>bucket.length)){
+    for(const bucket of buckets){
+      const next=bucket.shift();
+      if(next)spread.push(next);
+    }
+  }
+  return spread;
+}
+
 function perchSpawnsForStage(platforms){
-  return platforms
+  const anchors=platforms
     .filter(spec=>spec.y<=512&&spec.w>=cells(5))
     .sort((a,b)=>a.x-b.x||a.y-b.y)
     .map(spec=>({
@@ -160,6 +181,7 @@ function perchSpawnsForStage(platforms){
       maxX:spec.x+spec.w-32,
       kind:'perch',
     }));
+  return spreadAnchorsAcrossZones(anchors);
 }
 
 export function generateExpandedStageV24(seed,depth=0,templateId='duel'){
@@ -217,12 +239,6 @@ export function expandedEnemyRosterV24(templateId,depth=0){
   return roster.slice(0,6);
 }
 
-export function activationZoneForX(x){
-  if(x>=STAGE_FLOW_V24.activationThresholds[2])return 2;
-  if(x>=STAGE_FLOW_V24.activationThresholds[1])return 1;
-  return 0;
-}
-
 export class GameSceneV24 extends GameSceneV23 {
   expandTemplateV24(template,depth){
     if(!template||template.id==='boss1')return template;
@@ -234,15 +250,31 @@ export class GameSceneV24 extends GameSceneV23 {
   }
 
   setArenaLocked(locked){
-    for(const x of this.progressionGates?.keys?.()||[])this.setGateLocked(x,locked);
+    const xs=this.v24OuterGateXs?.length?this.v24OuterGateXs:[...(this.progressionGates?.keys?.()||[])];
+    for(const x of xs)this.setGateLocked(x,locked);
+    if(!locked){
+      for(const x of this.v24ZoneGateXs||[])this.setStageZoneGateLockedV24(x,false);
+    }
+  }
+
+  setStageZoneGateLockedV24(x,locked){
+    this.v24ZoneGateStates=this.v24ZoneGateStates||new Map();
+    if(this.v24ZoneGateStates.get(x)===locked)return;
+    this.v24ZoneGateStates.set(x,locked);
+    this.setGateLocked(x,locked);
   }
 
   replaceStageGatesV24(isBoss=false){
     for(const gate of this.progressionGates?.values?.()||[])gate?.destroy?.();
     this.progressionGates=new Map();
-    const xs=isBoss?[430,1710]:[STAGE_FLOW_V24.left,STAGE_FLOW_V24.right];
-    for(const x of xs)this.progressionGates.set(x,this.createProgressionGate(x));
-    this.setArenaLocked(true);
+    this.v24ZoneGateStates=new Map();
+    this.v24OuterGateXs=isBoss?[430,1710]:[STAGE_FLOW_V24.left,STAGE_FLOW_V24.right];
+    this.v24ZoneGateXs=isBoss?[]:STAGE_FLOW_V24.activationThresholds.slice(1);
+    for(const x of [...this.v24OuterGateXs,...this.v24ZoneGateXs]){
+      this.progressionGates.set(x,this.createProgressionGate(x));
+    }
+    for(const x of this.v24OuterGateXs)this.setGateLocked(x,true);
+    for(const x of this.v24ZoneGateXs)this.setStageZoneGateLockedV24(x,true);
   }
 
   rebuildRoomLayout(template){
@@ -279,6 +311,7 @@ export class GameSceneV24 extends GameSceneV23 {
         if(enemy.sprite?.body)enemy.sprite.body.enable=true;
       }
     });
+    this.updateStageZoneGatesV24();
   }
 
   activateStageEnemyV24(enemy,time){
@@ -299,6 +332,16 @@ export class GameSceneV24 extends GameSceneV23 {
     this.spawnGreenBurst?.(enemy.sprite.x,enemy.sprite.y-18,8,26,22,170);
   }
 
+  updateStageZoneGatesV24(){
+    if(!this.v24ZoneGateXs?.length)return;
+    for(let zone=0;zone<this.v24ZoneGateXs.length;zone++){
+      const blocking=(this.enemies||[]).some(enemy=>
+        enemy?.alive&&enemy.type!=='boss1'&&enemy.v24ActivationZone===zone
+      );
+      this.setStageZoneGateLockedV24(this.v24ZoneGateXs[zone],blocking);
+    }
+  }
+
   updateStageActivationV24(time){
     if(this.dead||this.rewardActive||this.routeActive)return;
     const playerX=this.player?.x??STAGE_FLOW_V24.playerStartX;
@@ -306,6 +349,7 @@ export class GameSceneV24 extends GameSceneV23 {
       if(!enemy?.alive||!enemy.roomDormant||enemy.type==='boss1')continue;
       if(playerX>=enemy.v24ActivationX-32)this.activateStageEnemyV24(enemy,time);
     }
+    this.updateStageZoneGatesV24();
   }
 
   loadRunNode(template,depth,transition=true){
