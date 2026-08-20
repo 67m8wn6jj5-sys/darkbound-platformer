@@ -6,10 +6,12 @@ const PLAYER_FEET_Y=24;
 const V17_ART_SCALE=.396;
 export const PROTAGONIST_ART_SCALE_V18=.4554;
 
+// The older attack_alt animation is a waist-height horizontal sweep that no
+// longer matches the approved sword feel. Keep the production combo on the
+// three standard attack animations only; gameplay timing/damage remain owned
+// by the existing three combo steps in config.js.
 const ATTACK_COMBO_PATTERNS=Object.freeze([
   Object.freeze(['attack_1','attack_2','attack_3']),
-  Object.freeze(['attack_alt','attack_2','attack_3']),
-  Object.freeze(['attack_1','attack_alt','attack_3']),
 ]);
 
 const ATTACK_VISUAL_PHASES=Object.freeze({
@@ -85,10 +87,7 @@ export class GameSceneV18 extends GameSceneV17 {
     if(this.comboStep===0){
       this.attackPatternIndex=(this.attackPatternIndex+1)%ATTACK_COMBO_PATTERNS.length;
     }
-    let action=this.attackVisualForStep(this.comboStep,this.attackPatternIndex);
-    if(action===this.lastVisualAttackAction&&PIXELLAB_MANIFEST.attack_alt){
-      action=action==='attack_alt'?this.attackActionForStep(this.comboStep):'attack_alt';
-    }
+    const action=this.attackVisualForStep(this.comboStep,this.attackPatternIndex);
     this.attackVisualAction=action;
     this.lastVisualAttackAction=action;
     this.setPixelState(action,time,true);
