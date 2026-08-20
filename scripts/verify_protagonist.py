@@ -28,9 +28,20 @@ EXPECTED_COUNTS = {
 }
 EXPECTED_ATTACK_ANIMATIONS = {
     'attack_1': 'The_character_shifts_their_weight_forward_driving',
-    'attack_2': 'The_warrior_pivots_his_hips_and_drives_his_sword_i',
-    'attack_3': 'The_character_shifts_their_weight_forward_lifting',
+    'attack_2': 'The_character_shifts_their_weight_forward_lifting',
+    'attack_3': 'The_character_raises_their_sword_in_a_swift_powerf',
     'attack_alt': 'The_character_firmly_pivots_their_weight_onto_thei',
+}
+EXPECTED_OLD_ARCHIVE_ANIMATIONS = {
+    'The_character_shifts_their_weight_forward_driving',
+    'The_warrior_pivots_his_hips_and_drives_his_sword_i',
+    'The_character_firmly_pivots_their_weight_onto_thei',
+    'The_character_shifts_their_weight_forward_lifting',
+}
+EXPECTED_CURRENT_ARCHIVE_ANIMATIONS = {
+    'The_character_shifts_their_weight_slightly_to_plan',
+    'The_warrior_pivots_his_hips_and_drives_his_sword_i',
+    'The_character_raises_their_sword_in_a_swift_powerf',
 }
 EXPECTED_FORMATS = Counter({
     (256, 256, 8, 6): 210,
@@ -70,25 +81,26 @@ def current_non_attack_pngs():
     return sorted(kept)
 
 
-def find_old_sword_animations():
-    metadata_path = ATTACK_ROOT / 'metadata.json'
+def find_sword_animations(root, label):
+    metadata_path = root / 'metadata.json'
     if not metadata_path.exists():
-        fail('old attack metadata is missing')
+        fail(f'{label} metadata is missing')
     metadata = json.loads(metadata_path.read_text())
     for state in metadata.get('states') or []:
         character = state.get('character') or {}
         name = str(character.get('name') or state.get('folder') or '')
         if name == 'Sword attack':
             return ((state.get('frames') or {}).get('animations') or {})
-    fail('old archive contains no Sword attack state')
+    fail(f'{label} contains no Sword attack state')
 
 
 def selected_old_attack_pngs():
-    animations = find_old_sword_animations()
-    if set(animations) != set(EXPECTED_ATTACK_ANIMATIONS.values()):
+    animations = find_sword_animations(ATTACK_ROOT, 'old attack archive')
+    if set(animations) != EXPECTED_OLD_ARCHIVE_ANIMATIONS:
         fail(f'old sword animation set changed: {sorted(animations)}')
     selected = []
-    for action, animation_name in EXPECTED_ATTACK_ANIMATIONS.items():
+    for action in ('attack_1', 'attack_2', 'attack_alt'):
+        animation_name = EXPECTED_ATTACK_ANIMATIONS[action]
         directional = animations[animation_name]
         for direction, expected in zip(('east', 'west'), EXPECTED_COUNTS[action]):
             relatives = directional.get(direction) or []
@@ -99,6 +111,25 @@ def selected_old_attack_pngs():
                 if not source.exists():
                     fail(f'{action}/{direction}: missing source {relative}')
                 selected.append(source)
+    return selected
+
+
+def selected_current_finisher_pngs():
+    animations = find_sword_animations(BASE_ROOT, 'current protagonist archive')
+    if set(animations) != EXPECTED_CURRENT_ARCHIVE_ANIMATIONS:
+        fail(f'current sword animation set changed: {sorted(animations)}')
+    action = 'attack_3'
+    directional = animations[EXPECTED_ATTACK_ANIMATIONS[action]]
+    selected = []
+    for direction, expected in zip(('east', 'west'), EXPECTED_COUNTS[action]):
+        relatives = directional.get(direction) or []
+        if len(relatives) != expected:
+            fail(f'{action}/{direction}: expected {expected} source frames, got {len(relatives)}')
+        for relative in relatives:
+            source = BASE_ROOT / relative
+            if not source.exists():
+                fail(f'{action}/{direction}: missing source {relative}')
+            selected.append(source)
     return selected
 
 
@@ -153,12 +184,21 @@ def main():
             fail(f'{action}: rotations are not preserved from the current archive')
 
         if action.startswith('attack_'):
-            if meta.get('sourceArchive') != ATTACK_ARCHIVE:
+            expected_archive = BASE_ARCHIVE if action == 'attack_3' else ATTACK_ARCHIVE
+            if meta.get('sourceArchive') != expected_archive:
                 fail(f'{action}: attack provenance is wrong')
             if meta.get('sourceAnimation') != EXPECTED_ATTACK_ANIMATIONS[action]:
                 fail(f'{action}: wrong source animation')
         elif meta.get('sourceArchive') != BASE_ARCHIVE:
             fail(f'{action}: non-attack art is not from the current archive')
+
+    # The disliked hip-pivot sequence exists in both source archives but must not
+    # be mapped to any live/runtime attack action.
+    for action in ('attack_1', 'attack_2', 'attack_3'):
+        if 'pivots_his_hips' in manifest[action].get('sourceAnimation', ''):
+            fail(f'{action}: disliked pivoting sword animation leaked into the live combo')
+    if 'lifting' not in manifest['attack_2'].get('sourceAnimation', ''):
+        fail('attack_2 is not the archived upward/lifting cut')
 
     land = manifest['land']
     if not land.get('mirrorWest') or land.get('mirrorSourceDirection') != 'east':
@@ -184,21 +224,26 @@ def main():
     if len(current_pngs) != 249 or len(old_pngs) != 249:
         fail(f'archive identity changed: current={len(current_pngs)} old={len(old_pngs)}')
     kept_current = current_non_attack_pngs()
-    selected_attacks = selected_old_attack_pngs()
+    selected_old = selected_old_attack_pngs()
+    selected_finisher = selected_current_finisher_pngs()
     if len(kept_current) != 201:
         fail(f'expected 201 preserved current PNGs, found {len(kept_current)}')
-    if len(selected_attacks) != 65:
-        fail(f'expected 65 old sword PNGs across four visuals, found {len(selected_attacks)}')
+    if len(selected_old) != 49:
+        fail(f'expected 49 selected old sword PNGs, found {len(selected_old)}')
+    if len(selected_finisher) != 16:
+        fail(f'expected 16 current finisher PNGs, found {len(selected_finisher)}')
     if len(output_pngs) != 266:
         fail(f'expected 266 production PNGs, found {len(output_pngs)}')
-    if Counter(map(digest, kept_current + selected_attacks)) != Counter(map(digest, output_pngs)):
-        fail('production art is not the exact intended current+old composition')
+    expected_composition = kept_current + selected_old + selected_finisher
+    if Counter(map(digest, expected_composition)) != Counter(map(digest, output_pngs)):
+        fail('production art is not the exact intended mixed-archive composition')
     if Counter(png_header(path) for path in output_pngs) != EXPECTED_FORMATS:
         fail('production PNG dimensions/formats changed unexpectedly')
 
     print('Fluid protagonist artwork verification passed.')
     print('Preserved: 201 current non-attack/rotation PNGs byte-for-byte')
-    print('Sword visuals: 65 old PNGs byte-for-byte across attack_1/2/3 + attack_alt')
+    print('Live sword combo: old opening slash -> old upward cut -> current overhead finisher')
+    print('Archived waist-height attack_alt remains non-live; pivoting attack is not selected')
     print('Production artwork: 266/266 PNGs match the intended composition')
 
 
