@@ -48,6 +48,9 @@ for(const seed of [1,2,7,42,999,123456789,0xffffffff]){
       assert.ok(room.groundSpawns.length>=8,'expanded stage must expose many separated ground anchors');
       assert.ok(room.perchSpawns.length>=3,'expanded stage must expose multiple raised combat anchors');
       assert.ok(room.player.x<room.groundSpawns[0].x,'player must enter before the first enemy lane');
+      assert.deepEqual(room.groundSpawns.slice(0,3).map(spawn=>activationZoneForX(spawn.x)),[0,1,2],'first three melee anchors must span all stage zones');
+      const firstPerchZones=new Set(room.perchSpawns.slice(0,3).map(spawn=>activationZoneForX(spawn.x)));
+      assert.ok(firstPerchZones.size>=2,'early ranged anchors must not all cluster in one section');
       for(const spec of room.platforms){
         assert.ok(spec.x>STAGE_FLOW_V24.left,'platforms must remain inside the stage');
         assert.ok(spec.x+spec.w<STAGE_FLOW_V24.right,'platforms must leave room near the exit gate');
@@ -78,5 +81,8 @@ assert.match(source,/STAGE_FLOW_V24\.right/,'expanded stage must use the wider r
 assert.match(source,/for\(const spec of layout\.platforms\)this\.addTraversalCollider\(spec\)/,'raised terrain must preserve V23 one-way traversal');
 assert.match(source,/template\?\.id==='boss1'/,'boss arena must remain explicitly authored rather than stretched blindly');
 assert.match(source,/replaceStageGatesV24/,'progression gates must move with the expanded stage');
+assert.match(source,/activationThresholds\.slice\(1\)/,'expanded stage must create internal combat seals between zones');
+assert.match(source,/updateStageZoneGatesV24/,'internal seals must respond to clearing each combat zone');
+assert.match(source,/enemy\.v24ActivationZone===zone/,'a zone gate must remain locked while that zone still has living enemies');
 
 console.log('Expanded Stage Flow V24 verification passed.');
