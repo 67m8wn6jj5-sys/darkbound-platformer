@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 
-const temporaryManifests = [
-  ['src/enemy1Manifest.js', 'export const ENEMY1_MANIFEST = {};\n'],
-  ['src/enemy2Manifest.js', 'export const ENEMY2_MANIFEST = {};\n'],
-  ['src/boss1Manifest.js', 'export const BOSS1_MANIFEST = {};\n'],
+const temporaryManifests=[
+  ['src/enemy1Manifest.js','export const ENEMY1_MANIFEST = {};\n'],
+  ['src/enemy2Manifest.js','export const ENEMY2_MANIFEST = {};\n'],
+  ['src/boss1Manifest.js','export const BOSS1_MANIFEST = {};\n'],
 ];
 const created=[];
 for(const [path,source] of temporaryManifests){if(!existsSync(path)){writeFileSync(path,source);created.push(path);}}
@@ -18,13 +18,15 @@ const {TUNING}=await import('../src/config.js');
 assert.equal(PROTAGONIST_ART_SCALE_V18,.4554);
 assert.ok(Math.abs(PROTAGONIST_ART_SCALE_V18/.396-1.15)<1e-12,'V18 art scale must be exactly 15% above V17');
 const mainSource=readFileSync('src/main.js','utf8');
+const v22Source=readFileSync('src/GameSceneV22.js','utf8');
 const v21Source=readFileSync('src/GameSceneV21.js','utf8');
 const v20Source=readFileSync('src/GameSceneV20.js','utf8');
 const v19Source=readFileSync('src/GameSceneV19.js','utf8');
-assert.match(mainSource,/GameSceneV21/,'main must boot the current combat scene');
+assert.match(mainSource,/GameSceneV22/,'main must boot the current environment/combat scene');
+assert.match(v22Source,/extends GameSceneV21/,'V22 must preserve V21 through inheritance');
 assert.match(v21Source,/extends GameSceneV20/,'V21 must preserve Combat Pass 2 through inheritance');
 assert.match(v20Source,/extends GameSceneV19/,'V20 must preserve Combat Pass 1 through inheritance');
-assert.match(v19Source,/extends GameSceneV18/,'live combat chain must preserve V18 protagonist behavior through inheritance');
+assert.match(v19Source,/extends GameSceneV18/,'live chain must preserve V18 protagonist behavior through inheritance');
 
 assert.equal(PIXELLAB_MANIFEST.attack_alt.sourceAnimation,'The_character_firmly_pivots_their_weight_onto_thei');
 assert.equal(PIXELLAB_MANIFEST.attack_alt.east,8);
