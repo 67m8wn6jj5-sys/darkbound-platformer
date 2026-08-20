@@ -1,5 +1,5 @@
-import { GameSceneV23 } from './GameSceneV23.js';
-// GameSceneV23 extends GameSceneV22; V22 remains the procedural terrain and combat foundation.
+import { GameSceneV24 } from './GameSceneV24.js';
+// GameSceneV24 extends GameSceneV23 -> GameSceneV22, preserving level-design, terrain, and combat foundations.
 
 let game = null;
 let startTimer = null;
@@ -43,7 +43,7 @@ function startGame() {
       activePointers: 5
     },
     dom: { createContainer: true },
-    scene: [GameSceneV23],
+    scene: [GameSceneV24],
     render: { antialias: true, pixelArt: false }
   };
 
