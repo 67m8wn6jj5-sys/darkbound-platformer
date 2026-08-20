@@ -19,7 +19,10 @@ globalThis.Phaser={
 
 const {GameSceneV21,COMBAT_V21,swordPriorityContactIsValid}=await import('../src/GameSceneV21.js');
 
-assert.match(readFileSync('src/main.js','utf8'),/GameSceneV21/,'main must boot Sword Charge Interrupt V21');
+const mainSource=readFileSync('src/main.js','utf8');
+const v22Source=readFileSync('src/GameSceneV22.js','utf8');
+assert.match(mainSource,/GameSceneV22/,'main must boot the current environment/combat scene');
+assert.match(v22Source,/extends GameSceneV21/,'V22 must preserve the sword-charge priority rules through inheritance');
 assert.ok(COMBAT_V21.swordPriority.rangeGracePx<=12,'sword priority must stay close to the real sword reach');
 assert.ok(COMBAT_V21.swordPriority.rearGracePx<=10,'sword priority must not protect attacks aimed the wrong way');
 
