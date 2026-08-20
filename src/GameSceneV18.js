@@ -6,17 +6,16 @@ const PLAYER_FEET_Y=24;
 const V17_ART_SCALE=.396;
 export const PROTAGONIST_ART_SCALE_V18=.4554;
 
-// The older attack_alt animation is a waist-height horizontal sweep that no
-// longer matches the approved sword feel. Keep the production combo on the
-// three standard attack animations only; gameplay timing/damage remain owned
-// by the existing three combo steps in config.js.
+// The live visual combo is opening slash -> upward cut -> overhead finisher.
+// The retired waist-height sweep and hip-pivot attack remain archived only;
+// gameplay timing/damage stay owned by the existing three combo steps.
 const ATTACK_COMBO_PATTERNS=Object.freeze([
   Object.freeze(['attack_1','attack_2','attack_3']),
 ]);
 
 const ATTACK_VISUAL_PHASES=Object.freeze({
   attack_1:{activeFirst:3,activeLast:6,anticipationExponent:.74,recoveryExponent:1.22},
-  attack_2:{activeFirst:3,activeLast:5,anticipationExponent:.72,recoveryExponent:1.18},
+  attack_2:{activeFirst:4,activeLast:6,anticipationExponent:.76,recoveryExponent:1.12},
   attack_alt:{activeFirst:2,activeLast:6,anticipationExponent:.7,recoveryExponent:1.2},
   attack_3:{activeFirst:4,activeLast:6,anticipationExponent:.76,recoveryExponent:1.08},
 });
