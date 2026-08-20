@@ -7,30 +7,17 @@ const temporaryManifests=[
   ['src/boss1Manifest.js','export const BOSS1_MANIFEST = {idle:{east:1,west:1},lunge:{east:9,west:9},slam:{east:9,west:9},hit:{east:8,west:8},death:{east:8,west:8}};\n'],
 ];
 const created=[];
-for(const [path,source] of temporaryManifests){
-  if(!existsSync(path)){
-    writeFileSync(path,source);
-    created.push(path);
-  }
-}
-process.on('exit',()=>{
-  for(const path of created){
-    try{unlinkSync(path);}catch{}
-  }
-});
+for(const [path,source] of temporaryManifests){if(!existsSync(path)){writeFileSync(path,source);created.push(path);}}
+process.on('exit',()=>{for(const path of created){try{unlinkSync(path);}catch{}}});
 
-globalThis.Phaser={
-  Scene:class Scene{},
-  BlendModes:{ADD:'ADD'},
-  Math:{Between:(a)=>a,Clamp:(value,min,max)=>Math.max(min,Math.min(max,value))},
-  Utils:{Array:{GetRandom:(values)=>values[0],Shuffle:(values)=>values}},
-};
+globalThis.Phaser={Scene:class Scene{},BlendModes:{ADD:'ADD'},Math:{Between:(a)=>a,Clamp:(value,min,max)=>Math.max(min,Math.min(max,value))},Utils:{Array:{GetRandom:(values)=>values[0],Shuffle:(values)=>values}}};
 
 const {COMBAT_V20,chooseMeleeIntentV20,meleeContactIsValid}=await import('../src/GameSceneV20.js');
-
 const mainSource=readFileSync('src/main.js','utf8');
+const v22Source=readFileSync('src/GameSceneV22.js','utf8');
 const v21Source=readFileSync('src/GameSceneV21.js','utf8');
-assert.match(mainSource,/GameSceneV21/,'main must boot the current combat scene');
+assert.match(mainSource,/GameSceneV22/,'main must boot the current environment/combat scene');
+assert.match(v22Source,/extends GameSceneV21/,'V22 must preserve V21 combat');
 assert.match(v21Source,/extends GameSceneV20/,'V21 must preserve Combat Pass 2 through inheritance');
 assert.ok(COMBAT_V20.melee.windupMs>=320,'melee telegraph must be clearly readable');
 assert.ok(COMBAT_V20.melee.recoveryMs>=300,'successful evade must create a meaningful punish window');
@@ -45,7 +32,6 @@ assert.equal(chooseMeleeIntentV20(55,20,false,true),'retreat');
 assert.equal(chooseMeleeIntentV20(230,20,false,true),'approach');
 assert.equal(chooseMeleeIntentV20(110,20,false,true),'hold');
 assert.equal(chooseMeleeIntentV20(110,130,true,true),'hold','vertical mismatch must remain safe');
-
 assert.equal(meleeContactIsValid(70,20,100,92),true,'front-side contact in the active window should hit');
 assert.equal(meleeContactIsValid(-12,20,100,92),false,'getting behind the attacker must be safe');
 assert.equal(meleeContactIsValid(70,20,40,92),false,'windup/early lunge must not damage');
@@ -61,5 +47,4 @@ assert.match(source,/damageOverlay/,'player damage needs a strong screen-level c
 assert.match(source,/`-\$\{hpLost\} HP`/,'player damage needs explicit HP-loss text');
 assert.match(source,/pixelArt\.setTintFill\(VFX_WHITE\)/,'player sprite must flash on damage');
 assert.match(source,/art\.setTintFill\(VFX_WHITE\)/,'enemies must flash on successful sword contact');
-
 console.log('Combat Fairness & Damage Feedback Pass 2 verification passed.');
