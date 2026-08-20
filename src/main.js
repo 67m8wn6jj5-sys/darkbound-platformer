@@ -1,4 +1,5 @@
 import { GameSceneV23 } from './GameSceneV23.js';
+// GameSceneV23 extends GameSceneV22; V22 remains the procedural terrain and combat foundation.
 
 let game = null;
 let startTimer = null;
