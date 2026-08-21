@@ -25,7 +25,7 @@ const v22Source=readFileSync('src/GameSceneV22.js','utf8');
 const v21Source=readFileSync('src/GameSceneV21.js','utf8');
 const v20Source=readFileSync('src/GameSceneV20.js','utf8');
 const v19Source=readFileSync('src/GameSceneV19.js','utf8');
-assert.match(mainSource,/GameSceneV24/,'main must boot the current V24 environment/combat inheritance chain');
+assert.match(mainSource,/GameSceneV24/,'main must preserve the V24 environment/combat inheritance chain');
 assert.match(v22Source,/extends GameSceneV21/);
 assert.match(v21Source,/extends GameSceneV20/);
 assert.match(v20Source,/extends GameSceneV19/);
@@ -53,26 +53,26 @@ for(const patternIndex of [0,1,2,7,42]){
   assert.equal(s.attackVisualForStep(1,patternIndex),'attack_2');
   assert.equal(s.attackVisualForStep(2,patternIndex),'attack_3');
 }
-assert.deepEqual(TUNING.attackDurationsMs,[185,195,430]);
-assert.deepEqual(TUNING.attackActiveStartMs,[42,48,68]);
-assert.deepEqual(TUNING.attackActiveEndMs,[122,138,190]);
+assert.deepEqual(TUNING.attackDurationsMs,[230,245,500]);
+assert.deepEqual(TUNING.attackActiveStartMs,[52,60,80]);
+assert.deepEqual(TUNING.attackActiveEndMs,[144,164,220]);
 
 s.attackStartsAt=1000;s.comboStep=0;
-const attack1Frames=[s.attackFrame('attack_1','east',1000),s.attackFrame('attack_1','east',1042),s.attackFrame('attack_1','east',1080),s.attackFrame('attack_1','east',1122),s.attackFrame('attack_1','east',1185)];
+const attack1Frames=[s.attackFrame('attack_1','east',1000),s.attackFrame('attack_1','east',1052),s.attackFrame('attack_1','east',1098),s.attackFrame('attack_1','east',1144),s.attackFrame('attack_1','east',1230)];
 for(let i=1;i<attack1Frames.length;i++)assert.ok(attack1Frames[i]>=attack1Frames[i-1],`attack-1 frames must advance monotonically: ${attack1Frames}`);
 assert.equal(attack1Frames[1],2);
 assert.equal(attack1Frames[3],5);
 
 s.attackStartsAt=2000;s.comboStep=1;
-const attack2Frames=[s.attackFrame('attack_2','east',2000),s.attackFrame('attack_2','east',2048),s.attackFrame('attack_2','east',2093),s.attackFrame('attack_2','east',2138),s.attackFrame('attack_2','east',2195)];
+const attack2Frames=[s.attackFrame('attack_2','east',2000),s.attackFrame('attack_2','east',2060),s.attackFrame('attack_2','east',2112),s.attackFrame('attack_2','east',2164),s.attackFrame('attack_2','east',2245)];
 for(let i=1;i<attack2Frames.length;i++)assert.ok(attack2Frames[i]>=attack2Frames[i-1],`upward-slash frames must advance monotonically: ${attack2Frames}`);
 assert.equal(attack2Frames[1],2);
 assert.equal(attack2Frames[3],5);
 
 s.attackStartsAt=3000;s.comboStep=2;
-assert.equal(s.attackFrame('attack_3','east',3068),3,'finisher contact should enter on frame 3');
-assert.equal(s.attackFrame('attack_3','east',3190),7,'finisher contact should leave on frame 7');
-assert.equal(s.attackFrame('attack_3','east',3430),8,'9-frame finisher must reach its final recovery frame');
+assert.equal(s.attackFrame('attack_3','east',3080),3,'finisher contact should enter on frame 3');
+assert.equal(s.attackFrame('attack_3','east',3220),7,'finisher contact should leave on frame 7');
+assert.equal(s.attackFrame('attack_3','east',3500),8,'9-frame finisher must reach its final recovery frame');
 
 const source=readFileSync('src/GameSceneV18.js','utf8');
 assert.match(source,/Object\.freeze\(\['attack_1','attack_2','attack_3'\]\)/,'live combo must be exactly the three today-sourced attacks');
@@ -81,4 +81,4 @@ assert.match(source,/attack_1:\{activeFirst:2,activeLast:5/);
 assert.match(source,/attack_2:\{activeFirst:2,activeLast:5/);
 assert.match(source,/attack_3:\{activeFirst:3,activeLast:7/);
 
-console.log('V18 today-only three-strike combo and visual timing verification passed.');
+console.log('V18 today-only three-strike combo and slower frame timing verification passed.');

@@ -17,11 +17,12 @@ export const TUNING = Object.freeze({
   rollCooldownMs: 680,
 
   comboResetMs: 650,
-  // Keep the established contact windows but trim dead recovery time so queued
-  // attacks transition more fluidly, especially after the heavy third swing.
-  attackDurationsMs: [185, 195, 430],
-  attackActiveStartMs: [42, 48, 68],
-  attackActiveEndMs: [122, 138, 190],
+  // V26: give the new 8/8/9-frame sword art enough time to read. The active
+  // windows grow only modestly; most of the extra time is anticipation and
+  // recovery so combat stays responsive instead of becoming floaty.
+  attackDurationsMs: [230, 245, 500],
+  attackActiveStartMs: [52, 60, 80],
+  attackActiveEndMs: [144, 164, 220],
   attackRanges: [80, 88, 104],
   attackKnockback: [225, 285, 440],
   hitStopMs: [48, 58, 90],
