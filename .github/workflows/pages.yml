@@ -21,15 +21,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Normalize definitive production protagonist animation set
+      - name: Build definitive V27 protagonist animation set
         run: |
           set -euo pipefail
-          python scripts/normalize_protagonist.py
+          python scripts/build_protagonist_v27.py
 
-      - name: Verify definitive protagonist asset coverage
+      - name: Verify definitive V27 protagonist asset coverage
         run: |
           set -euo pipefail
-          python scripts/verify_protagonist.py
+          python scripts/verify_protagonist_v27.py
 
       - name: Normalize Enemy 1 PixelLab frames
         run: |
