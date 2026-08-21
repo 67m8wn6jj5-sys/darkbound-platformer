@@ -1,5 +1,6 @@
 import { GameSceneV25 } from './GameSceneV25.js';
-// GameSceneV25 extends GameSceneV24, preserving procedural stage flow and combat while fixing sword combo cycling and per-attack presentation.
+// Live chain: GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
+// V25 changes only sword combo cycling and per-attack presentation; procedural stage flow and established combat remain inherited underneath it.
 
 let game = null;
 let startTimer = null;
