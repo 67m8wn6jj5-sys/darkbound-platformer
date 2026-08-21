@@ -1,5 +1,23 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+
+const temporaryManifests=[
+  ['src/enemy1Manifest.js','export const ENEMY1_MANIFEST = {};\n'],
+  ['src/enemy2Manifest.js','export const ENEMY2_MANIFEST = {};\n'],
+  ['src/boss1Manifest.js','export const BOSS1_MANIFEST = {};\n'],
+];
+const created=[];
+for(const [path,source] of temporaryManifests){
+  if(!existsSync(path)){writeFileSync(path,source);created.push(path);}
+}
+process.on('exit',()=>{for(const path of created){try{unlinkSync(path);}catch{}}});
+
+globalThis.Phaser={
+  Scene:class Scene{},
+  BlendModes:{ADD:'ADD'},
+  Math:{Between:(a)=>a,Clamp:(value,min,max)=>Math.max(min,Math.min(max,value))},
+  Utils:{Array:{GetRandom:(values)=>values[0],Shuffle:(values)=>values}},
+};
 
 const {TUNING}=await import('../src/config.js');
 const {SWORD_VFX_V26}=await import('../src/GameSceneV26.js');
