@@ -16,40 +16,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Normalize definitive production protagonist
+      - name: Build definitive V27 protagonist animation set
         run: |
           set -euo pipefail
-          python scripts/normalize_protagonist.py
+          python scripts/build_protagonist_v27.py
 
-      - name: Verify complete artwork and manifest coverage
+      - name: Verify V27 artwork and manifest coverage
         run: |
           set -euo pipefail
-          python scripts/verify_protagonist.py
+          python scripts/verify_protagonist_v27.py
 
       - name: Parse-check JavaScript modules
         run: |
           set -euo pipefail
           for file in src/*.js; do node --check "$file"; done
 
-      - name: Verify protagonist state priority, turning, and combat frame sync
+      - name: Verify V27 protagonist runtime, combo, turning, and frame sync
         run: |
           set -euo pipefail
-          node --experimental-default-type=module scripts/verify_protagonist_logic.mjs
+          node --experimental-default-type=module scripts/verify_protagonist_runtime_v27.mjs
 
-      - name: Verify today-only sword combo and visual timing
+      - name: Verify downward finisher and blade-locked VFX V27
         run: |
           set -euo pipefail
-          node --experimental-default-type=module scripts/verify_protagonist_v18.mjs
-
-      - name: Verify sword cycling and V25 inheritance
-        run: |
-          set -euo pipefail
-          node --experimental-default-type=module scripts/verify_sword_presentation_v25.mjs
-
-      - name: Verify slower sword pacing and subtle VFX V26
-        run: |
-          set -euo pipefail
-          node --experimental-default-type=module scripts/verify_sword_pacing_v26.mjs
+          node --experimental-default-type=module scripts/verify_blade_tracking_v27.mjs
 
       - name: Verify Combat Feel and Enemy Intelligence Pass 1
         run: node --experimental-default-type=module scripts/verify_combat_v19.mjs
@@ -73,12 +63,12 @@ jobs:
         run: |
           set -euo pipefail
           if grep -nE 'px-update4|protagonist-update-[0-9]|Protagonist sprite updates\.zip|production58|FALLBACK_ASSET_ROOT|FALLBACK_SEQUENCES|fallbackKey|attack_alt' \
-            src/GameSceneV17.js src/GameSceneV18.js src/GameSceneV19.js src/GameSceneV20.js src/GameSceneV21.js src/GameSceneV22.js src/GameSceneV23.js src/GameSceneV24.js src/GameSceneV25.js src/GameSceneV26.js; then
+            src/GameSceneV17.js src/GameSceneV18.js src/GameSceneV19.js src/GameSceneV20.js src/GameSceneV21.js src/GameSceneV22.js src/GameSceneV23.js src/GameSceneV24.js src/GameSceneV25.js src/GameSceneV26.js src/GameSceneV27.js; then
             echo 'Found a stale live protagonist/attack reference.' >&2
             exit 1
           fi
           if grep -nE 'Protagonist update\.zip' \
-            src/GameSceneV05.js src/GameSceneV17.js src/GameSceneV18.js src/GameSceneV19.js src/GameSceneV20.js src/GameSceneV21.js src/GameSceneV22.js src/GameSceneV23.js src/GameSceneV24.js src/GameSceneV25.js src/GameSceneV26.js .github/workflows/pages.yml; then
+            src/GameSceneV05.js src/GameSceneV17.js src/GameSceneV18.js src/GameSceneV19.js src/GameSceneV20.js src/GameSceneV21.js src/GameSceneV22.js src/GameSceneV23.js src/GameSceneV24.js src/GameSceneV25.js src/GameSceneV26.js src/GameSceneV27.js .github/workflows/pages.yml; then
             echo 'Old attack archive leaked into live runtime/deploy references.' >&2
             exit 1
           fi
@@ -105,12 +95,13 @@ jobs:
           curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV24.js" >/tmp/v24.js
           curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV25.js" >/tmp/v25.js
           curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV26.js" >/tmp/v26.js
+          curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV27.js" >/tmp/v27.js
           curl -fsS "http://127.0.0.1:$PORT/src/pixellabManifest.js" >/tmp/protagonist-manifest.js
           curl -fsS "http://127.0.0.1:$PORT/assets/v05/pixellab_protagonist/attack_1/east/frame_000.png" >/tmp/attack1.png
           curl -fsS "http://127.0.0.1:$PORT/assets/v05/pixellab_protagonist/attack_2/east/frame_000.png" >/tmp/attack2.png
           curl -fsS "http://127.0.0.1:$PORT/assets/v05/pixellab_protagonist/attack_3/east/frame_000.png" >/tmp/attack3.png
           curl -fsS "http://127.0.0.1:$PORT/pixellab-tileset-ancient-dark-gothic-stone-masonry-large-a89e3ba5.png" >/tmp/gothic-terrain.png
-          test -s /tmp/attack1.png -a -s /tmp/attack2.png -a -s /tmp/attack3.png -a -s /tmp/gothic-terrain.png -a -s /tmp/v25.js -a -s /tmp/v26.js
+          test -s /tmp/attack1.png -a -s /tmp/attack2.png -a -s /tmp/attack3.png -a -s /tmp/gothic-terrain.png -a -s /tmp/v25.js -a -s /tmp/v26.js -a -s /tmp/v27.js
 
           CHROME=''
           for candidate in google-chrome google-chrome-stable chromium chromium-browser; do
