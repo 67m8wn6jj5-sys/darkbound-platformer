@@ -1,5 +1,5 @@
-import { GameSceneV24 } from './GameSceneV24.js';
-// GameSceneV24 extends GameSceneV23 -> GameSceneV22, preserving level-design, terrain, and combat foundations.
+import { GameSceneV25 } from './GameSceneV25.js';
+// GameSceneV25 extends V24, preserving procedural stage flow and combat while fixing sword combo cycling and per-attack presentation.
 
 let game = null;
 let startTimer = null;
@@ -43,7 +43,7 @@ function startGame() {
       activePointers: 5
     },
     dom: { createContainer: true },
-    scene: [GameSceneV24],
+    scene: [GameSceneV25],
     render: { antialias: true, pixelArt: false }
   };
 
