@@ -6,30 +6,19 @@ const PLAYER_FEET_Y=24;
 const V17_ART_SCALE=.396;
 export const PROTAGONIST_ART_SCALE_V18=.4554;
 
-// The live visual combo is opening slash -> upward cut -> overhead finisher.
-// The retired waist-height sweep and hip-pivot attack remain archived only;
-// gameplay timing/damage stay owned by the existing three combo steps.
+// V27 visual combo: all three live sword strikes come only from the two
+// 2026-08-21 attack packs. The order is deliberately readable as a quick
+// forward cut -> rising slash -> longer committed finishing cut. Gameplay
+// timing, damage, range, knockback and charge-priority stay in config/V21.
 const ATTACK_COMBO_PATTERNS=Object.freeze([
   Object.freeze(['attack_1','attack_2','attack_3']),
 ]);
 
 const ATTACK_VISUAL_PHASES=Object.freeze({
-  attack_1:{activeFirst:3,activeLast:6,anticipationExponent:.74,recoveryExponent:1.22},
-  attack_2:{activeFirst:4,activeLast:6,anticipationExponent:.76,recoveryExponent:1.12},
-  attack_alt:{activeFirst:2,activeLast:6,anticipationExponent:.7,recoveryExponent:1.2},
-  attack_3:{activeFirst:4,activeLast:6,anticipationExponent:.76,recoveryExponent:1.08},
+  attack_1:{activeFirst:2,activeLast:5,anticipationExponent:.72,recoveryExponent:1.2},
+  attack_2:{activeFirst:2,activeLast:5,anticipationExponent:.74,recoveryExponent:1.15},
+  attack_3:{activeFirst:3,activeLast:7,anticipationExponent:.78,recoveryExponent:1.08},
 });
-
-const ALT_FX=Object.freeze({
-  2:{x:-38,y:-48,angle:176,length:118,width:8,travelX:-22,travelY:0,intensity:.95},
-  3:{x:-58,y:-46,angle:180,length:138,width:9,travelX:-30,travelY:2,intensity:1.02},
-  5:{x:8,y:-30,angle:12,length:142,width:9,travelX:30,travelY:6,intensity:1.04},
-  6:{x:58,y:-18,angle:24,length:150,width:10,travelX:38,travelY:12,intensity:1.1},
-});
-
-const VFX_GREEN=0x43ff57;
-const VFX_GREEN_HOT=0xbfff8f;
-const VFX_GREEN_CORE=0xf2ffe1;
 
 function clamp01(value){
   return Math.max(0,Math.min(1,value));
@@ -50,10 +39,6 @@ function sourceDirection(meta,direction){
 function frameCount(meta,direction){
   const source=sourceDirection(meta,direction);
   return Math.max(1,meta?.[source]||1);
-}
-
-function mirroredAngle(angle,facing){
-  return facing>0?angle:180-angle;
 }
 
 export class GameSceneV18 extends GameSceneV17 {
@@ -109,7 +94,12 @@ export class GameSceneV18 extends GameSceneV17 {
     const activeStart=TUNING.attackActiveStartMs[step]||0;
     const activeEnd=Math.max(activeStart,TUNING.attackActiveEndMs[step]||activeStart);
     const elapsed=Math.max(0,Math.min(duration,time-(this.attackStartsAt||time)));
-    const phase=ATTACK_VISUAL_PHASES[action]||{activeFirst:1,activeLast:Math.max(1,count-2),anticipationExponent:.75,recoveryExponent:1.2};
+    const phase=ATTACK_VISUAL_PHASES[action]||{
+      activeFirst:1,
+      activeLast:Math.max(1,count-2),
+      anticipationExponent:.75,
+      recoveryExponent:1.2,
+    };
     const activeFirst=Math.max(0,Math.min(count-1,phase.activeFirst));
     const activeLast=Math.max(activeFirst,Math.min(count-1,phase.activeLast));
 
@@ -125,74 +115,6 @@ export class GameSceneV18 extends GameSceneV17 {
     const raw=duration>activeEnd?(elapsed-activeEnd)/(duration-activeEnd):1;
     const shaped=Math.pow(clamp01(raw),phase.recoveryExponent||1.2);
     return rangedFrame(Math.min(count-1,activeLast+1),count-1,shaped);
-  }
-
-  emitAttackMotionFx(action,frame,time){
-    if(action!=='attack_alt'){
-      super.emitAttackMotionFx(action,frame,time);
-      return;
-    }
-    const profile=ALT_FX[frame];
-    if(!profile)return;
-    const token=`${this.attackStartsAt}:${action}:${frame}`;
-    if(token===this.lastAttackFxToken)return;
-    this.lastAttackFxToken=token;
-
-    const facing=this.facing<0?-1:1;
-    const x=this.player.x+facing*profile.x*PROTAGONIST_ART_SCALE_V18;
-    const y=this.player.y+PLAYER_FEET_Y+profile.y*PROTAGONIST_ART_SCALE_V18;
-    const angle=mirroredAngle(profile.angle,facing);
-    const radians=angle*Math.PI/180;
-    const normalX=Math.cos(radians+Math.PI/2);
-    const normalY=Math.sin(radians+Math.PI/2);
-    const length=profile.length*PROTAGONIST_ART_SCALE_V18;
-    const width=Math.max(2,profile.width*PROTAGONIST_ART_SCALE_V18);
-    const intensity=profile.intensity||1;
-
-    for(let i=0;i<2;i++){
-      const offset=(i-.5)*4*PROTAGONIST_ART_SCALE_V18;
-      const streak=this.add.rectangle(
-        x+normalX*offset,
-        y+normalY*offset,
-        length*(1+i*.08),
-        width*(1.35-i*.45),
-        i===0?VFX_GREEN_HOT:VFX_GREEN_CORE,
-        i===0?.48:.86
-      ).setOrigin(.5,.5).setAngle(angle).setDepth(110+i).setBlendMode(Phaser.BlendModes.ADD);
-      this.tweens.add({
-        targets:streak,
-        x:streak.x+facing*profile.travelX*PROTAGONIST_ART_SCALE_V18,
-        y:streak.y+profile.travelY*PROTAGONIST_ART_SCALE_V18,
-        scaleX:1.12,
-        scaleY:.08,
-        alpha:0,
-        duration:Math.round(105+i*20),
-        ease:'Quad.easeOut',
-        onComplete:()=>streak.destroy()
-      });
-    }
-
-    const tipX=x+Math.cos(radians)*length*.48;
-    const tipY=y+Math.sin(radians)*length*.48;
-    for(let i=0;i<4;i++){
-      const spark=this.add.circle(
-        tipX+Phaser.Math.Between(-3,3),
-        tipY+Phaser.Math.Between(-3,3),
-        Phaser.Math.Between(1,3),
-        i===0?VFX_GREEN_CORE:VFX_GREEN_HOT,
-        .9
-      ).setDepth(114).setBlendMode(Phaser.BlendModes.ADD);
-      this.tweens.add({
-        targets:spark,
-        x:spark.x+facing*Phaser.Math.Between(10,24)*intensity,
-        y:spark.y+Phaser.Math.Between(-10,10)*intensity,
-        alpha:0,
-        scale:.08,
-        duration:Phaser.Math.Between(90,150),
-        ease:'Quad.easeOut',
-        onComplete:()=>spark.destroy()
-      });
-    }
   }
 
   updatePixelArt(time){
