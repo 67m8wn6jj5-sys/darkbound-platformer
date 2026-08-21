@@ -1,6 +1,6 @@
-import { GameSceneV26 } from './GameSceneV26.js';
-// Live chain: GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
-// V26 slows sword pacing and makes swing VFX deliberately subtle; procedural stage flow and established combat systems remain inherited underneath it.
+import { GameSceneV27 } from './GameSceneV27.js';
+// Live chain: GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
+// V27 restores the approved downward finisher to the ground combo and locks sword VFX directly to frame-authored blade motion.
 
 let game = null;
 let startTimer = null;
@@ -44,7 +44,7 @@ function startGame() {
       activePointers: 5
     },
     dom: { createContainer: true },
-    scene: [GameSceneV26],
+    scene: [GameSceneV27],
     render: { antialias: true, pixelArt: false }
   };
 
