@@ -28,7 +28,7 @@ function scene(overrides={}){
     comboStep:0,
     facing:1,
     attackStartsAt:1000,
-    attackEndsAt:1195,
+    attackEndsAt:1230,
     attackQueued:false,
     queuedAttackCount:0,
     lastRollAt:1000,
@@ -52,7 +52,6 @@ function state(name,mutator,expected,time=1200){
 
 assert.match(readFileSync('src/GameSceneV17.js','utf8'),/const ART_SCALE=\.396;/);
 
-// Every sword strike is now sourced only from the two packs uploaded 2026-08-21.
 assert.equal(PIXELLAB_MANIFEST.attack_1.sourceArchive,TODAY_KO);
 assert.equal(PIXELLAB_MANIFEST.attack_2.sourceArchive,TODAY_SWORD);
 assert.equal(PIXELLAB_MANIFEST.attack_3.sourceArchive,TODAY_SWORD);
@@ -93,22 +92,20 @@ state('death',s=>{s.dead=true;s.hitAnimEndsAt=9999;s.state='attack-3';},'death')
 state('hit priority over attack',s=>{s.hitAnimEndsAt=1500;s.state='attack-3';s.comboStep=2;},'hit');
 state('attack priority over locomotion',s=>{s.state='attack-2';s.comboStep=1;},'attack_2');
 
-// Rapid triple taps must still play all three distinct combo slots.
 {
-  const s=scene({attackStartsAt:1000,attackEndsAt:1195,comboStep:0});
+  const s=scene({attackStartsAt:1000,attackEndsAt:1230,comboStep:0});
   s.queueAttack(1050);s.queueAttack(1070);
   assert.equal(s.queuedAttackCount,2);
   const started=[];
   s.startAttack=(time,step)=>{started.push(step);s.comboStep=step;s.attackStartsAt=time;s.attackEndsAt=time+100;};
-  assert.equal(s.finishOrChainAttack(1195),true);
+  assert.equal(s.finishOrChainAttack(1230),true);
   assert.equal(started[0],1);
   assert.equal(s.queuedAttackCount,1);
-  assert.equal(s.finishOrChainAttack(1295),true);
+  assert.equal(s.finishOrChainAttack(1330),true);
   assert.equal(started[1],2);
   assert.equal(s.queuedAttackCount,0);
 }
 
-// Eight-way cosmetic reversal remains unchanged.
 {
   const s=scene({facing:-1});
   assert.equal(s.beginOrUpdateTurn('west',1000),true);
@@ -128,18 +125,18 @@ state('attack priority over locomotion',s=>{s.state='attack-2';s.comboStep=1;},'
   s.beginOrUpdateTurn('east',2090);assert.equal(s.turning,false);
 }
 
-// V17's frame mapping remains valid for the new frame counts; V18 applies the
-// final per-animation visual phase tuning used by the live chain.
+// V17's underlying frame mapping follows the same V26 contact windows; V18
+// then applies the final per-animation visual phase tuning used by the live chain.
 {
   const a1=scene({state:'attack-1',comboStep:0,attackStartsAt:1000});
-  assert.equal(a1.attackFrame('attack_1','east',1042),2);
-  assert.equal(a1.attackFrame('attack_1','east',1122),6);
+  assert.equal(a1.attackFrame('attack_1','east',1052),2);
+  assert.equal(a1.attackFrame('attack_1','east',1144),6);
   const a2=scene({state:'attack-2',comboStep:1,attackStartsAt:1000});
-  assert.equal(a2.attackFrame('attack_2','east',1048),4);
-  assert.equal(a2.attackFrame('attack_2','east',1138),6);
+  assert.equal(a2.attackFrame('attack_2','east',1060),4);
+  assert.equal(a2.attackFrame('attack_2','east',1164),6);
   const a3=scene({state:'attack-3',comboStep:2,attackStartsAt:1000});
-  assert.equal(a3.attackFrame('attack_3','east',1068),4);
-  assert.equal(a3.attackFrame('attack_3','east',1190),6);
+  assert.equal(a3.attackFrame('attack_3','east',1080),4);
+  assert.equal(a3.attackFrame('attack_3','east',1220),6);
 }
 
 {
@@ -152,4 +149,4 @@ state('attack priority over locomotion',s=>{s.state='attack-2';s.comboStep=1;},'
   assert.equal(s.frameForState('death','west',9000),7);
 }
 
-console.log('Today-only sword source, combo buffering, turning, and frame-sync verification passed.');
+console.log('Today-only sword source, combo buffering, turning, and V26 frame-sync verification passed.');
