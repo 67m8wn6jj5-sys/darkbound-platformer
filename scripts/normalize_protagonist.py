@@ -8,9 +8,11 @@ import zipfile
 import zlib
 
 BASE_ARCHIVE = Path('Sprite updates protagonist .zip')
-ATTACK_ARCHIVE = Path('Protagonist update.zip')
+TODAY_SWORD_ARCHIVE = Path('Recreate_this_character-Sword_attack.zip')
+TODAY_KO_ARCHIVE = Path('Recreate_this_character-Ko_Gasumi_sword_atta.zip')
 BASE_ROOT = Path('.protagonist-production')
-ATTACK_ROOT = Path('.protagonist-attack-replacements')
+TODAY_SWORD_ROOT = Path('.protagonist-attacks-today-sword')
+TODAY_KO_ROOT = Path('.protagonist-attacks-today-ko')
 OUT = Path('assets/v05/pixellab_protagonist')
 MANIFEST_JS = Path('src/pixellabManifest.js')
 DIRECTIONS = ('east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east')
@@ -26,27 +28,23 @@ STATE_ACTIONS = {
     'Dash attack': 'dash',
 }
 
-# Keep the preferred old opening slash, replace the disliked hip-pivot follow-up
-# with the old upward/lifting cut, and use the current archive's distinct
-# overhead/downward sequence as the heavy finisher. The old waist-height sweep
-# remains archived as attack_alt for provenance but is not selected by gameplay.
-OLD_SWORD_SEQUENCE_ACTIONS = {
-    'The_character_shifts_their_weight_forward_driving': 'attack_1',
-    'The_character_shifts_their_weight_forward_lifting': 'attack_2',
-    'The_character_firmly_pivots_their_weight_onto_thei': 'attack_alt',
-}
-CURRENT_FINISHER_ANIMATION = 'The_character_raises_their_sword_in_a_swift_powerf'
-EXPECTED_OLD_SWORD_ANIMATIONS = {
-    'The_character_shifts_their_weight_forward_driving',
-    'The_warrior_pivots_his_hips_and_drives_his_sword_i',
-    'The_character_firmly_pivots_their_weight_onto_thei',
-    'The_character_shifts_their_weight_forward_lifting',
-}
-EXPECTED_CURRENT_SWORD_ANIMATIONS = {
+# V27 rule: every live sword STRIKE must come from the two packs uploaded on
+# 2026-08-21. Two animations in TODAY_SWORD_ARCHIVE are exact duplicates of
+# older wired artwork and are intentionally excluded. The three genuinely new
+# sequences are arranged as a readable light -> rising -> committed finisher
+# combo. Gameplay timing/damage still belongs to the existing three combo steps.
+KO_ATTACK_ANIMATION = 'The_warrior_shifts_his_weight_forward_tightening_h'
+UPWARD_ATTACK_ANIMATION = 'Upward_sword_slash._Starting_from_the_feet_and_fin'
+SWORD_PACK_ATTACK_ANIMATION = 'The_warrior_shifts_his_weight_forward_tightening_h'
+EXCLUDED_DUPLICATE_ANIMATIONS = {
     'The_character_shifts_their_weight_slightly_to_plan',
-    'The_warrior_pivots_his_hips_and_drives_his_sword_i',
-    CURRENT_FINISHER_ANIMATION,
+    'The_character_raises_their_sword_in_a_swift_powerf',
 }
+EXPECTED_TODAY_SWORD_ANIMATIONS = EXCLUDED_DUPLICATE_ANIMATIONS | {
+    UPWARD_ATTACK_ANIMATION,
+    SWORD_PACK_ATTACK_ANIMATION,
+}
+EXPECTED_TODAY_KO_ANIMATIONS = {KO_ATTACK_ANIMATION}
 
 DEFAULTS = {
     'idle': {'fps': 8, 'loop': True, 'gameplay': 'idle'},
@@ -54,10 +52,9 @@ DEFAULTS = {
     'jump': {'fps': 12, 'loop': False, 'gameplay': 'jumping'},
     'fall': {'fps': 12, 'loop': False, 'gameplay': 'falling'},
     'land': {'fps': 24, 'loop': False, 'gameplay': 'landing'},
-    'attack_1': {'fps': 18, 'loop': False, 'gameplay': 'combo attack 1'},
+    'attack_1': {'fps': 18, 'loop': False, 'gameplay': 'combo attack 1 / quick forward cut'},
     'attack_2': {'fps': 18, 'loop': False, 'gameplay': 'combo attack 2 / upward cut'},
-    'attack_3': {'fps': 16, 'loop': False, 'gameplay': 'combo attack 3 / heavy finisher'},
-    'attack_alt': {'fps': 18, 'loop': False, 'gameplay': 'archived alternate combo visual'},
+    'attack_3': {'fps': 18, 'loop': False, 'gameplay': 'combo attack 3 / committed finisher'},
     'dash': {'fps': 18, 'loop': False, 'gameplay': 'dodge / evade'},
     'hit': {'fps': 16, 'loop': False, 'gameplay': 'damage / knockback'},
     'death': {'fps': 10, 'loop': False, 'gameplay': 'death'},
@@ -84,11 +81,23 @@ def extract(archive, destination):
         z.extractall(destination)
 
 
-def resolve(root, relative):
-    path = root / relative
-    if not path.exists():
-        raise FileNotFoundError(f'{root}: missing {relative}')
-    return path
+def load_metadata(root):
+    candidates = sorted(root.rglob('metadata.json'), key=lambda p: (len(p.parts), len(str(p))))
+    if not candidates:
+        fail(f'{root}: missing metadata.json')
+    path = candidates[0]
+    return json.loads(path.read_text()), path.parent
+
+
+def resolve(root, metadata_dir, relative):
+    relative = Path(relative)
+    for candidate in (root / relative, metadata_dir / relative):
+        if candidate.exists():
+            return candidate
+    matches = [p for p in root.rglob(relative.name) if str(p).replace('\\', '/').endswith(str(relative).replace('\\', '/'))]
+    if len(matches) == 1:
+        return matches[0]
+    raise FileNotFoundError(f'{root}: missing {relative}')
 
 
 def paeth(a, b, c):
@@ -172,7 +181,7 @@ def find_state(metadata, wanted):
     return None
 
 
-def copy_rotations(rotation_source, rotation_map):
+def copy_rotations(rotation_source, rotation_map, source_root, metadata_dir):
     dest = OUT / rotation_source / 'rotations'
     dest.mkdir(parents=True, exist_ok=True)
     padding, canvas = {}, {}
@@ -180,7 +189,7 @@ def copy_rotations(rotation_source, rotation_map):
         relative = rotation_map.get(direction)
         if not relative:
             raise ValueError(f'{rotation_source}: missing rotation {direction}')
-        source = resolve(BASE_ROOT, relative)
+        source = resolve(source_root, metadata_dir, relative)
         shutil.copy2(source, dest / f'{direction}.png')
         width, height, bottom_padding = png_metrics(source)
         padding[direction] = bottom_padding
@@ -188,8 +197,8 @@ def copy_rotations(rotation_source, rotation_map):
     return padding, canvas
 
 
-def copy_sequence(action, direction, relatives, source_root):
-    sources = sorted((resolve(source_root, relative) for relative in relatives), key=frame_number)
+def copy_sequence(action, direction, relatives, source_root, metadata_dir):
+    sources = sorted((resolve(source_root, metadata_dir, relative) for relative in relatives), key=frame_number)
     dest = OUT / action / direction
     dest.mkdir(parents=True, exist_ok=True)
     paddings, canvases = [], []
@@ -201,8 +210,8 @@ def copy_sequence(action, direction, relatives, source_root):
     return len(sources), paddings, canvases
 
 
-def build_action(action, state_name, animation_name, directional, source_root, source_archive,
-                 rotation_source, rotation_padding, rotation_canvas):
+def build_action(action, state_name, animation_name, directional, source_root, metadata_dir,
+                 source_archive, rotation_source, rotation_padding, rotation_canvas):
     if not directional.get('east'):
         raise ValueError(f'{action}: missing east frames')
     meta = dict(DEFAULTS[action])
@@ -219,13 +228,17 @@ def build_action(action, state_name, animation_name, directional, source_root, s
         'frameBottomPadding': {},
         'frameCanvas': {},
     })
-    east_count, east_padding, east_canvas = copy_sequence(action, 'east', directional.get('east') or [], source_root)
+    east_count, east_padding, east_canvas = copy_sequence(
+        action, 'east', directional.get('east') or [], source_root, metadata_dir
+    )
     meta['east'] = east_count
     meta['frameBottomPadding']['east'] = east_padding
     meta['frameCanvas']['east'] = east_canvas
     west_frames = directional.get('west') or []
     if west_frames:
-        west_count, west_padding, west_canvas = copy_sequence(action, 'west', west_frames, source_root)
+        west_count, west_padding, west_canvas = copy_sequence(
+            action, 'west', west_frames, source_root, metadata_dir
+        )
         meta['west'] = west_count
         meta['frameBottomPadding']['west'] = west_padding
         meta['frameCanvas']['west'] = west_canvas
@@ -242,25 +255,32 @@ def build_action(action, state_name, animation_name, directional, source_root, s
 
 def main():
     extract(BASE_ARCHIVE, BASE_ROOT)
-    extract(ATTACK_ARCHIVE, ATTACK_ROOT)
+    extract(TODAY_SWORD_ARCHIVE, TODAY_SWORD_ROOT)
+    extract(TODAY_KO_ARCHIVE, TODAY_KO_ROOT)
     if OUT.exists():
         shutil.rmtree(OUT)
     OUT.mkdir(parents=True, exist_ok=True)
 
-    base_metadata = json.loads((BASE_ROOT / 'metadata.json').read_text())
-    attack_metadata = json.loads((ATTACK_ROOT / 'metadata.json').read_text())
-    current_sword = find_state(base_metadata, 'Sword attack')
-    old_sword = find_state(attack_metadata, 'Sword attack')
-    if not current_sword:
-        fail('current protagonist archive has no Sword attack state')
-    if not old_sword:
-        fail('attack replacement archive has no Sword attack state')
-    current_animations = ((current_sword.get('frames') or {}).get('animations') or {})
-    old_animations = ((old_sword.get('frames') or {}).get('animations') or {})
-    if set(current_animations) != EXPECTED_CURRENT_SWORD_ANIMATIONS:
-        fail(f'current sword animation set changed: {sorted(current_animations)}')
-    if set(old_animations) != EXPECTED_OLD_SWORD_ANIMATIONS:
-        fail(f'old sword animation set changed: {sorted(old_animations)}')
+    base_metadata, base_meta_dir = load_metadata(BASE_ROOT)
+    sword_metadata, sword_meta_dir = load_metadata(TODAY_SWORD_ROOT)
+    ko_metadata, ko_meta_dir = load_metadata(TODAY_KO_ROOT)
+
+    base_sword = find_state(base_metadata, 'Sword attack')
+    today_sword = find_state(sword_metadata, 'Sword attack')
+    today_ko = find_state(ko_metadata, 'Ko Gasumi sword atta')
+    if not base_sword:
+        fail('current protagonist archive has no Sword attack state for rotations')
+    if not today_sword:
+        fail('today Sword_attack pack has no Sword attack state')
+    if not today_ko:
+        fail('today Ko Gasumi pack has no Ko Gasumi sword atta state')
+
+    sword_animations = ((today_sword.get('frames') or {}).get('animations') or {})
+    ko_animations = ((today_ko.get('frames') or {}).get('animations') or {})
+    if set(sword_animations) != EXPECTED_TODAY_SWORD_ANIMATIONS:
+        fail(f'today sword animation set changed: {sorted(sword_animations)}')
+    if set(ko_animations) != EXPECTED_TODAY_KO_ANIMATIONS:
+        fail(f'today Ko animation set changed: {sorted(ko_animations)}')
 
     manifest = {}
     rotation_cache = {}
@@ -281,31 +301,15 @@ def main():
             continue
         if rotation_source not in rotation_cache:
             try:
-                rotation_cache[rotation_source] = copy_rotations(rotation_source, rotations)
+                rotation_cache[rotation_source] = copy_rotations(
+                    rotation_source, rotations, BASE_ROOT, base_meta_dir
+                )
             except Exception as exc:
                 issues.append(str(exc))
                 continue
         rotation_padding, rotation_canvas = rotation_cache[rotation_source]
 
         if state_name == 'Sword attack':
-            for animation_name, action in OLD_SWORD_SEQUENCE_ACTIONS.items():
-                try:
-                    manifest[action] = build_action(
-                        action, state_name, animation_name, old_animations[animation_name],
-                        ATTACK_ROOT, ATTACK_ARCHIVE.name,
-                        rotation_source, rotation_padding, rotation_canvas
-                    )
-                except Exception as exc:
-                    issues.append(str(exc))
-            try:
-                manifest['attack_3'] = build_action(
-                    'attack_3', state_name, CURRENT_FINISHER_ANIMATION,
-                    current_animations[CURRENT_FINISHER_ANIMATION],
-                    BASE_ROOT, BASE_ARCHIVE.name,
-                    rotation_source, rotation_padding, rotation_canvas
-                )
-            except Exception as exc:
-                issues.append(str(exc))
             continue
 
         action = STATE_ACTIONS[state_name]
@@ -316,11 +320,33 @@ def main():
         try:
             manifest[action] = build_action(
                 action, state_name, animation_name, directional,
-                BASE_ROOT, BASE_ARCHIVE.name,
+                BASE_ROOT, base_meta_dir, BASE_ARCHIVE.name,
                 rotation_source, rotation_padding, rotation_canvas
             )
         except Exception as exc:
             issues.append(str(exc))
+
+    if 'sword_attack' not in rotation_cache:
+        issues.append('missing sword rotation set')
+    else:
+        rotation_padding, rotation_canvas = rotation_cache['sword_attack']
+        attack_specs = (
+            ('attack_1', 'Ko Gasumi sword atta', KO_ATTACK_ANIMATION,
+             ko_animations[KO_ATTACK_ANIMATION], TODAY_KO_ROOT, ko_meta_dir, TODAY_KO_ARCHIVE.name),
+            ('attack_2', 'Sword attack', UPWARD_ATTACK_ANIMATION,
+             sword_animations[UPWARD_ATTACK_ANIMATION], TODAY_SWORD_ROOT, sword_meta_dir, TODAY_SWORD_ARCHIVE.name),
+            ('attack_3', 'Sword attack', SWORD_PACK_ATTACK_ANIMATION,
+             sword_animations[SWORD_PACK_ATTACK_ANIMATION], TODAY_SWORD_ROOT, sword_meta_dir, TODAY_SWORD_ARCHIVE.name),
+        )
+        for action, state_name, animation_name, directional, root, meta_dir, archive_name in attack_specs:
+            try:
+                manifest[action] = build_action(
+                    action, state_name, animation_name, directional,
+                    root, meta_dir, archive_name,
+                    'sword_attack', rotation_padding, rotation_canvas
+                )
+            except Exception as exc:
+                issues.append(str(exc))
 
     required = set(DEFAULTS)
     missing = sorted(required - set(manifest))
@@ -337,11 +363,11 @@ def main():
 
     (OUT / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     MANIFEST_JS.write_text('export const PIXELLAB_MANIFEST = ' + json.dumps(manifest, separators=(',', ':')) + ';\n')
-    print('Current protagonist archive:', BASE_ARCHIVE)
-    print('Attack replacement archive:', ATTACK_ARCHIVE)
+    print('Current non-attack protagonist archive:', BASE_ARCHIVE)
+    print('Today attack archives:', TODAY_KO_ARCHIVE, 'and', TODAY_SWORD_ARCHIVE)
     print('Runtime actions:', ', '.join(manifest))
-    print('Live sword combo: attack_1 (old opening), attack_2 (old upward cut), attack_3 (current overhead finisher)')
-    print('Archived non-live sword visual: attack_alt')
+    print('Live sword combo: Ko Gasumi forward cut -> upward slash -> 9-frame committed follow-through')
+    print('Excluded exact duplicates:', ', '.join(sorted(EXCLUDED_DUPLICATE_ANIMATIONS)))
 
 
 if __name__ == '__main__':
