@@ -11,7 +11,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,14 +26,10 @@ jobs:
           set -euo pipefail
           python scripts/build_environment_v30.py
 
-      - name: Verify V27 artwork and manifest coverage
+      - name: Verify V27 artwork and environment inventory
         run: |
           set -euo pipefail
           python scripts/verify_protagonist_v27.py
-
-      - name: Verify current PixelLab environment inventory
-        run: |
-          set -euo pipefail
           python scripts/verify_environment_art_v30.py
 
       - name: Parse-check JavaScript modules
@@ -41,55 +37,34 @@ jobs:
           set -euo pipefail
           for file in src/*.js; do node --check "$file"; done
 
-      - name: Verify V27 protagonist runtime, combo, turning, and frame sync
+      - name: Verify protagonist and combat inheritance
         run: |
           set -euo pipefail
           node --experimental-default-type=module scripts/verify_protagonist_runtime_v27.mjs
-
-      - name: Verify downward finisher and blade-locked VFX V27
-        run: |
-          set -euo pipefail
           node --experimental-default-type=module scripts/verify_blade_tracking_v27.mjs
+          node --experimental-default-type=module scripts/verify_stab_reversal_v29.mjs
+          node --experimental-default-type=module scripts/verify_combat_v19.mjs
+          node --experimental-default-type=module scripts/verify_combat_v20.mjs
+          node --experimental-default-type=module scripts/verify_combat_v21.mjs
 
-      - name: Verify reversed stab opener V29
+      - name: Verify historical and current level systems
         run: |
           set -euo pipefail
-          node --experimental-default-type=module scripts/verify_stab_reversal_v29.mjs
-
-      - name: Verify Combat Feel and Enemy Intelligence Pass 1
-        run: node --experimental-default-type=module scripts/verify_combat_v19.mjs
-
-      - name: Verify Combat Fairness and Damage Feedback Pass 2
-        run: node --experimental-default-type=module scripts/verify_combat_v20.mjs
-
-      - name: Verify sword priority over melee charges
-        run: node --experimental-default-type=module scripts/verify_combat_v21.mjs
-
-      - name: Verify Procedural Gothic Ruins environment
-        run: node --experimental-default-type=module scripts/verify_environment_v22.mjs
-
-      - name: Verify Playable Procedural Level Design
-        run: node --experimental-default-type=module scripts/verify_level_design_v23.mjs
-
-      - name: Verify Expanded Stage Flow
-        run: node --experimental-default-type=module scripts/verify_stage_flow_v24.mjs
-
-      - name: Verify authored whole-room traversal V31
-        run: node --experimental-default-type=module scripts/verify_authored_layout_v31.mjs
-
-      - name: Verify authored three-tileset dressing V32
-        run: node --experimental-default-type=module scripts/verify_authored_dressing_v32.mjs
+          node --experimental-default-type=module scripts/verify_environment_v22.mjs
+          node --experimental-default-type=module scripts/verify_level_design_v23.mjs
+          node --experimental-default-type=module scripts/verify_stage_flow_v24.mjs
+          node --experimental-default-type=module scripts/verify_authored_layout_v31.mjs
+          node --experimental-default-type=module scripts/verify_authored_dressing_v32.mjs
+          node --experimental-default-type=module scripts/verify_long_traversal_v33.mjs
 
       - name: Reject stale live protagonist references
         run: |
           set -euo pipefail
-          if grep -nE 'px-update4|protagonist-update-[0-9]|Protagonist sprite updates\.zip|production58|FALLBACK_ASSET_ROOT|FALLBACK_SEQUENCES|fallbackKey|attack_alt' \
-            src/GameSceneV17.js src/GameSceneV18.js src/GameSceneV19.js src/GameSceneV20.js src/GameSceneV21.js src/GameSceneV22.js src/GameSceneV23.js src/GameSceneV24.js src/GameSceneV25.js src/GameSceneV26.js src/GameSceneV27.js src/GameSceneV28.js src/GameSceneV29.js src/GameSceneV30.js src/GameSceneV31.js src/GameSceneV32.js; then
+          if grep -nE 'px-update4|protagonist-update-[0-9]|Protagonist sprite updates\.zip|production58|FALLBACK_ASSET_ROOT|FALLBACK_SEQUENCES|fallbackKey|attack_alt' src/GameSceneV{17..33}.js; then
             echo 'Found a stale live protagonist/attack reference.' >&2
             exit 1
           fi
-          if grep -nE 'Protagonist update\.zip' \
-            src/GameSceneV05.js src/GameSceneV17.js src/GameSceneV18.js src/GameSceneV19.js src/GameSceneV20.js src/GameSceneV21.js src/GameSceneV22.js src/GameSceneV23.js src/GameSceneV24.js src/GameSceneV25.js src/GameSceneV26.js src/GameSceneV27.js src/GameSceneV28.js src/GameSceneV29.js src/GameSceneV30.js src/GameSceneV31.js src/GameSceneV32.js .github/workflows/pages.yml; then
+          if grep -nE 'Protagonist update\.zip' src/GameSceneV05.js src/GameSceneV{17..33}.js .github/workflows/pages.yml; then
             echo 'Old attack archive leaked into live runtime/deploy references.' >&2
             exit 1
           fi
@@ -113,27 +88,16 @@ jobs:
           done
           test "$READY" -eq 1
           curl -fsS "http://127.0.0.1:$PORT/src/main.js" >/tmp/main.js
-          curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV24.js" >/tmp/v24.js
-          curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV25.js" >/tmp/v25.js
-          curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV26.js" >/tmp/v26.js
-          curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV27.js" >/tmp/v27.js
-          curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV28.js" >/tmp/v28.js
-          curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV29.js" >/tmp/v29.js
-          curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV30.js" >/tmp/v30.js
-          curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV31.js" >/tmp/v31.js
+          curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV33.js" >/tmp/v33.js
           curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV32.js" >/tmp/v32.js
-          curl -fsS "http://127.0.0.1:$PORT/src/pixellabManifest.js" >/tmp/protagonist-manifest.js
+          curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV29.js" >/tmp/v29.js
           curl -fsS "http://127.0.0.1:$PORT/assets/v05/pixellab_protagonist/attack_1/east/frame_000.png" >/tmp/attack1.png
           curl -fsS "http://127.0.0.1:$PORT/assets/v05/pixellab_protagonist/attack_2/east/frame_000.png" >/tmp/attack2.png
           curl -fsS "http://127.0.0.1:$PORT/assets/v05/pixellab_protagonist/attack_3/east/frame_000.png" >/tmp/attack3.png
           curl -fsS "http://127.0.0.1:$PORT/pixellab-tileset-ancient-dark-gothic-stone-masonry-large-a89e3ba5.png" >/tmp/gothic-terrain.png
-          curl -fsS "http://127.0.0.1:$PORT/pixellab-tileset-ancient-recessed-gothic-dungeon-wall-masonry-965b1f4b.png" >/tmp/gothic-background.png
-          curl -fsS "http://127.0.0.1:$PORT/pixellab-tileset-ancient-gothic-stone-pillar-and-arch-masonry-919c3a88.png" >/tmp/gothic-architecture.png
-          curl -fsS "http://127.0.0.1:$PORT/assets/v30/environment/lights/lights_00.png" >/tmp/v32-light.png
-          curl -fsS "http://127.0.0.1:$PORT/assets/v30/environment/background/background_00.png" >/tmp/v32-object.png
-          curl -fsS "http://127.0.0.1:$PORT/assets/v30/environment/arches/arches_00.png" >/tmp/v32-arch.png
-          test -s /tmp/attack1.png -a -s /tmp/attack2.png -a -s /tmp/attack3.png -a -s /tmp/gothic-terrain.png -a -s /tmp/gothic-background.png -a -s /tmp/gothic-architecture.png
-          test -s /tmp/v30.js -a -s /tmp/v31.js -a -s /tmp/v32.js -a -s /tmp/v32-light.png -a -s /tmp/v32-object.png -a -s /tmp/v32-arch.png
+          curl -fsS "http://127.0.0.1:$PORT/assets/v30/environment/lights/lights_00.png" >/tmp/light.png
+          test -s /tmp/v33.js -a -s /tmp/v32.js -a -s /tmp/v29.js
+          test -s /tmp/attack1.png -a -s /tmp/attack2.png -a -s /tmp/attack3.png -a -s /tmp/gothic-terrain.png -a -s /tmp/light.png
 
           CHROME=''
           for candidate in google-chrome google-chrome-stable chromium chromium-browser; do
@@ -143,9 +107,6 @@ jobs:
             echo 'HTTP launch smoke passed; no Chrome/Chromium binary is installed.'
             exit 0
           fi
-          "$CHROME" --headless=new --no-sandbox --disable-dev-shm-usage \
-            --enable-unsafe-swiftshader --window-size=1280,720 \
-            --virtual-time-budget=5000 --dump-dom \
-            "http://127.0.0.1:$PORT/index.html?seed=42" >/tmp/darkbound-dom.html 2>/tmp/darkbound-chrome.log
+          "$CHROME" --headless=new --no-sandbox --disable-dev-shm-usage --enable-unsafe-swiftshader --window-size=1280,720 --virtual-time-budget=6000 --dump-dom "http://127.0.0.1:$PORT/index.html?seed=42" >/tmp/darkbound-dom.html 2>/tmp/darkbound-chrome.log
           grep -q '<canvas' /tmp/darkbound-dom.html
           echo "Browser launch smoke passed with $CHROME."

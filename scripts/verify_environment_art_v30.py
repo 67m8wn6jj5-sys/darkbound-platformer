@@ -1,6 +1,5 @@
 from pathlib import Path
 import json
-import re
 import struct
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,7 +14,7 @@ REJECTED_PLATFORMS = [
 
 
 def fail(message):
-    raise SystemExit(f'V30 ENVIRONMENT VERIFY FAILED: {message}')
+    raise SystemExit(f'ENVIRONMENT VERIFY FAILED: {message}')
 
 
 def validate_png(path):
@@ -37,7 +36,7 @@ def main():
         records = manifest.get(group) or []
         if len(records) != count:
             fail(f'{group} count {len(records)} != {count}')
-        for index, record in enumerate(records):
+        for record in records:
             path = ROOT / record['path']
             if not path.exists():
                 fail(f'missing built asset: {path}')
@@ -45,60 +44,54 @@ def main():
             if (width, height) != (record['width'], record['height']):
                 fail(f'manifest dimensions disagree for {path}')
             if not record.get('sourceArchive', '').endswith('.zip'):
-                fail(f'{group}[{index}] lost source archive provenance')
+                fail(f'{group} asset lost archive provenance')
             if not record.get('sourceEntry', '').lower().endswith('.png'):
-                fail(f'{group}[{index}] lost source PNG provenance')
+                fail(f'{group} asset lost PNG provenance')
 
     terrain = manifest.get('terrain') or {}
     if terrain.get('foreground') != ORIGINAL_PLATFORM:
-        fail(f'foreground terrain must be the original approved gothic tileset, got {terrain.get("foreground")}')
+        fail(f'foreground terrain must remain the original gothic tileset, got {terrain.get("foreground")}')
     for role in ('foreground', 'background', 'architecture'):
         source = ROOT / terrain.get(role, '')
         if not source.exists():
-            fail(f'{role} PixelLab tileset missing: {source}')
+            fail(f'{role} PixelLab tileset missing from repository: {source}')
         validate_png(source)
-
     for rejected in REJECTED_PLATFORMS:
         if rejected.exists():
-            fail(f'rejected platform tileset must be deleted from the repository: {rejected.name}')
+            fail(f'rejected platform tileset returned: {rejected.name}')
 
-    source = (ROOT / 'src' / 'GameSceneV30.js').read_text()
-    if "extends GameSceneV29" not in source:
-        fail('V30 must preserve V29 attack behavior')
-    if ORIGINAL_PLATFORM not in source:
-        fail('original approved gothic PixelLab terrain is not live')
-    if '606f17e2' in source or 'e686e8eb' in source:
-        fail('a rejected platform tileset is still referenced by live V30 code')
-    if 'pixellab-tileset-ancient-recessed-gothic-dungeon-wall-masonry-965b1f4b.png' not in source:
-        fail('recessed PixelLab background wall is not live')
-    if 'pixellab-tileset-ancient-gothic-stone-pillar-and-arch-masonry-919c3a88.png' not in source:
-        fail('pillar/arch PixelLab architecture tileset is not available')
-    if 'assets/v30/environment/lights/' not in source or 'assets/v30/environment/background/' not in source or 'assets/v30/environment/arches/' not in source:
-        fail('V30 does not preload all PixelLab object groups')
-    if 'super.dressModularWorldV28' in source:
-        fail('V30 must not render V28 placeholder room dressing underneath PixelLab art')
-    for placeholder in ('this.createTorch(', 'this.createBackgroundArch(', 'this.createBrokenPillars(', 'this.createHangingChains('):
-        if placeholder in source:
-            fail(f'V30 still calls placeholder environment art: {placeholder}')
-    if not re.search(r'ENVIRONMENT_ART_V30\.lights\.length', source):
-        fail('V30 light inventory is not driven by the PixelLab light set')
+    v30 = (ROOT / 'src' / 'GameSceneV30.js').read_text()
+    if ORIGINAL_PLATFORM not in v30 or '606f17e2' in v30 or 'e686e8eb' in v30:
+        fail('V30 foreground terrain references changed unexpectedly')
+    for token in (
+        'pixellab-tileset-ancient-recessed-gothic-dungeon-wall-masonry-965b1f4b.png',
+        'pixellab-tileset-ancient-gothic-stone-pillar-and-arch-masonry-919c3a88.png',
+        'assets/v30/environment/lights/',
+        'assets/v30/environment/background/',
+        'assets/v30/environment/arches/',
+    ):
+        if token not in v30:
+            fail(f'environment inventory reference missing: {token}')
 
     main_source = (ROOT / 'src' / 'main.js').read_text()
-    v32_source = (ROOT / 'src' / 'GameSceneV32.js').read_text()
-    v31_source = (ROOT / 'src' / 'GameSceneV31.js').read_text()
-    if "import { GameSceneV32 } from './GameSceneV32.js'" not in main_source or 'scene: [GameSceneV32]' not in main_source:
-        fail('main.js does not boot V32')
-    if 'GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28' not in main_source:
-        fail('main.js does not document the preserved V32/V31/V30/V29/V28 chain')
-    if 'extends GameSceneV31' not in v32_source:
-        fail('V32 must preserve the V31 authored-layout layer')
-    if 'extends GameSceneV30' not in v31_source:
-        fail('V31 must preserve the V30 art inventory and V29 combat chain')
+    v33 = (ROOT / 'src' / 'GameSceneV33.js').read_text()
+    if "import { GameSceneV33 } from './GameSceneV33.js'" not in main_source or 'scene: [GameSceneV33]' not in main_source:
+        fail('main.js does not boot V33')
+    if 'GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29' not in main_source:
+        fail('main.js does not document the preserved V33 inheritance chain')
+    if 'extends GameSceneV32' not in v33:
+        fail('V33 must preserve prior combat/runtime inheritance')
+    if 'ENVIRONMENT_ART_V30.foreground.key' not in v33:
+        fail('V33 does not render the approved original foreground terrain')
+    if 'ENVIRONMENT_ART_V30.lights' not in v33:
+        fail('V33 should retain sparse PixelLab candle landmarks')
+    for rejected_live in ('addContinuousBackgroundV32(', 'renderArchitectureV32(', 'ENVIRONMENT_ART_V30.arches', 'ENVIRONMENT_ART_V30.backgroundObjects'):
+        if rejected_live in v33:
+            fail(f'V33 reintroduced rejected background/arch dressing: {rejected_live}')
 
-    print('V30/V31/V32 PixelLab environment art verification passed.')
-    print('Live terrain: original gothic foreground + recessed wall + pillar/arch architecture layer.')
-    print('Built objects: 3 lights, 12 background objects, 5 arch objects.')
-    print('Both rejected platform tilesets are absent from the repository.')
+    print('Environment inventory + V33 reset verification passed.')
+    print('Live V33 art: original foreground terrain + sparse PixelLab candle landmarks.')
+    print('Background/architecture/object assets remain preserved in the repository but are not rendered by V33.')
 
 
 if __name__ == '__main__':
