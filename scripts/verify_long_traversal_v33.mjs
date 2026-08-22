@@ -27,6 +27,6 @@ const source=readFileSync('src/GameSceneV33.js','utf8');
 assert.match(source,/extends GameSceneV32/);assert.match(source,/renderSolidFloorV33/);assert.match(source,/replaceStageGatesV24\(isBoss=false\)/);assert.match(source,/this\.clearV28Gates\(\)/);assert.match(source,/v24OuterGateXs=\[\]/);assert.match(source,/activationDistancePx/);assert.match(source,/setEnemyDormant\(enemy,true\)/);
 assert.doesNotMatch(source,/dressAuthoredWorldV32\(|addContinuousBackgroundV32\(|renderArchitectureV32\(/);
 
-const main=readFileSync('src/main.js','utf8');const v34=readFileSync('src/GameSceneV34.js','utf8');
-assert.match(main,/import \{ GameSceneV34 \} from '\.\/GameSceneV34\.js'/);assert.match(main,/scene: \[GameSceneV34\]/);assert.match(main,/GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29/);assert.match(v34,/extends GameSceneV33/);
-console.log('V33 long-traversal foundation verification passed beneath V34.');
+const main=readFileSync('src/main.js','utf8');const v35=readFileSync('src/GameSceneV35.js','utf8');const v34=readFileSync('src/GameSceneV34.js','utf8');
+assert.match(main,/import \{ GameSceneV35 \} from '\.\/GameSceneV35\.js'/);assert.match(main,/scene: \[GameSceneV35\]/);assert.match(main,/GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29/);assert.match(v35,/extends GameSceneV34/);assert.match(v34,/extends GameSceneV33/);
+console.log('V33 long-traversal foundation verification passed beneath V35.');
