@@ -1,0 +1,29 @@
+name: Verify Presentation Polish V36
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-polish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build protagonist and environment assets
+        run: |
+          set -euo pipefail
+          python scripts/build_protagonist_v27.py
+          python scripts/build_environment_v30.py
+
+      - name: Verify V36 presentation polish
+        run: node --experimental-default-type=module scripts/verify_polish_v36.mjs
+
+      - name: Parse-check V36 runtime
+        run: node --check src/GameSceneV36.js
