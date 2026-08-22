@@ -1,6 +1,6 @@
-import { GameSceneV32 } from './GameSceneV32.js';
-// Live chain: GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
-// V32 keeps V31's coherent authored layouts, uses all three approved PixelLab tilesets for distinct layers, and restores candles/objects through authored placement slots.
+import { GameSceneV33 } from './GameSceneV33.js';
+// Live chain: GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
+// V33 replaces short arena rooms with a 9.5k-pixel authored traversal stage, removes normal-room invisible gates, and keeps only sparse candle landmarks while the level foundation is rebuilt.
 
 let game = null;
 let startTimer = null;
@@ -44,7 +44,7 @@ function startGame() {
       activePointers: 5
     },
     dom: { createContainer: true },
-    scene: [GameSceneV32],
+    scene: [GameSceneV33],
     render: { antialias: true, pixelArt: false }
   };
 
