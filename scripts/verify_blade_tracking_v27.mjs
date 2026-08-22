@@ -35,6 +35,7 @@ assert.match(source,/bladeWorldPointV27/);assert.match(source,/previousTip\.x,pr
 assert.doesNotMatch(source,/Phaser\.Math\.Between/);assert.doesNotMatch(source,/super\.emitAttackMotionFx/);
 
 const main=readFileSync('src/main.js','utf8');
+const v36=readFileSync('src/GameSceneV36.js','utf8');
 const v35=readFileSync('src/GameSceneV35.js','utf8');
 const v34=readFileSync('src/GameSceneV34.js','utf8');
 const v33=readFileSync('src/GameSceneV33.js','utf8');
@@ -42,7 +43,7 @@ const v32=readFileSync('src/GameSceneV32.js','utf8');
 const v31=readFileSync('src/GameSceneV31.js','utf8');
 const v30=readFileSync('src/GameSceneV30.js','utf8');
 const v29=readFileSync('src/GameSceneV29.js','utf8');
-assert.match(main,/import \{ GameSceneV35 \} from '\.\/GameSceneV35\.js'/);
-assert.match(main,/GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27/);
-assert.match(v35,/extends GameSceneV34/);assert.match(v34,/extends GameSceneV33/);assert.match(v33,/extends GameSceneV32/);assert.match(v32,/extends GameSceneV31/);assert.match(v31,/extends GameSceneV30/);assert.match(v30,/extends GameSceneV29/);assert.match(v29,/extends GameSceneV28/);
-console.log('V27 blade-locked VFX verification passed beneath V35.');
+assert.match(main,/import \{ GameSceneV36 \} from '\.\/GameSceneV36\.js'/);
+assert.match(main,/GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27/);
+assert.match(v36,/extends GameSceneV35/);assert.match(v35,/extends GameSceneV34/);assert.match(v34,/extends GameSceneV33/);assert.match(v33,/extends GameSceneV32/);assert.match(v32,/extends GameSceneV31/);assert.match(v31,/extends GameSceneV30/);assert.match(v30,/extends GameSceneV29/);assert.match(v29,/extends GameSceneV28/);
+console.log('V27 blade-locked VFX verification passed beneath V36.');
