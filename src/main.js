@@ -1,6 +1,6 @@
-import { GameSceneV34 } from './GameSceneV34.js';
-// Live chain: GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
-// V34 restores the full four-area run before the boss, adds layered parallax backgrounds, real chasms/checkpoints, more vertical traversal, and 10-16 proximity-activated enemies per normal stage.
+import { GameSceneV35 } from './GameSceneV35.js';
+// Live chain: GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
+// V35 makes the uploaded masonry/architecture backgrounds visibly readable, adds layered architectural depth, removes prototype playfield text, and replaces neon geometric telegraphs with sprite-based tells.
 
 let game = null;
 let startTimer = null;
@@ -44,7 +44,7 @@ function startGame() {
       activePointers: 5
     },
     dom: { createContainer: true },
-    scene: [GameSceneV34],
+    scene: [GameSceneV35],
     render: { antialias: true, pixelArt: false }
   };
 
