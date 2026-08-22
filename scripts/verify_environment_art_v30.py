@@ -74,24 +74,25 @@ def main():
             fail(f'environment inventory reference missing: {token}')
 
     main_source = (ROOT / 'src' / 'main.js').read_text()
-    v33 = (ROOT / 'src' / 'GameSceneV33.js').read_text()
-    if "import { GameSceneV33 } from './GameSceneV33.js'" not in main_source or 'scene: [GameSceneV33]' not in main_source:
-        fail('main.js does not boot V33')
-    if 'GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29' not in main_source:
-        fail('main.js does not document the preserved V33 inheritance chain')
-    if 'extends GameSceneV32' not in v33:
-        fail('V33 must preserve prior combat/runtime inheritance')
-    if 'ENVIRONMENT_ART_V30.foreground.key' not in v33:
-        fail('V33 does not render the approved original foreground terrain')
-    if 'ENVIRONMENT_ART_V30.lights' not in v33:
-        fail('V33 should retain sparse PixelLab candle landmarks')
-    for rejected_live in ('addContinuousBackgroundV32(', 'renderArchitectureV32(', 'ENVIRONMENT_ART_V30.arches', 'ENVIRONMENT_ART_V30.backgroundObjects'):
-        if rejected_live in v33:
-            fail(f'V33 reintroduced rejected background/arch dressing: {rejected_live}')
+    v34 = (ROOT / 'src' / 'GameSceneV34.js').read_text()
+    if "import { GameSceneV34 } from './GameSceneV34.js'" not in main_source or 'scene: [GameSceneV34]' not in main_source:
+        fail('main.js does not boot V34')
+    if 'GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29' not in main_source:
+        fail('main.js does not document the preserved V34 inheritance chain')
+    if 'extends GameSceneV33' not in v34:
+        fail('V34 must preserve the V33/combat runtime inheritance chain')
+    if 'ENVIRONMENT_ART_V30.background.key' not in v34 or 'ENVIRONMENT_ART_V30.architecture.key' not in v34:
+        fail('V34 must use the approved background and architecture tilesets as layered depth art')
+    if 'ENVIRONMENT_ART_V30.backgroundObjects' not in v34:
+        fail('V34 should restore restrained authored background-object accents')
+    if 'ENVIRONMENT_ART_V30.lights' not in v34 and 'addTraversalLightV33' not in v34:
+        fail('V34 should retain PixelLab candle/light landmarks')
+    if 'ENVIRONMENT_ART_V30.arches' in v34:
+        fail('V34 must not enlarge/reuse the rejected incomplete arch-object exports')
 
-    print('Environment inventory + V33 reset verification passed.')
-    print('Live V33 art: original foreground terrain + sparse PixelLab candle landmarks.')
-    print('Background/architecture/object assets remain preserved in the repository but are not rendered by V33.')
+    print('Environment inventory + V34 layered-world verification passed.')
+    print('Live V34 art: original foreground + parallax background/architecture tilesets + restrained lights/objects.')
+    print('Rejected platform tilesets remain deleted and tiny arch-object exports remain unused by V34.')
 
 
 if __name__ == '__main__':

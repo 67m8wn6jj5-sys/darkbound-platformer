@@ -1,6 +1,6 @@
-import { GameSceneV33 } from './GameSceneV33.js';
-// Live chain: GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
-// V33 replaces short arena rooms with a 9.5k-pixel authored traversal stage, removes normal-room invisible gates, and keeps only sparse candle landmarks while the level foundation is rebuilt.
+import { GameSceneV34 } from './GameSceneV34.js';
+// Live chain: GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
+// V34 restores the full four-area run before the boss, adds layered parallax backgrounds, real chasms/checkpoints, more vertical traversal, and 10-16 proximity-activated enemies per normal stage.
 
 let game = null;
 let startTimer = null;
@@ -44,7 +44,7 @@ function startGame() {
       activePointers: 5
     },
     dom: { createContainer: true },
-    scene: [GameSceneV33],
+    scene: [GameSceneV34],
     render: { antialias: true, pixelArt: false }
   };
 

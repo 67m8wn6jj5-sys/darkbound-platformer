@@ -1,0 +1,32 @@
+name: Verify Vertical Ruins Expedition V34
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-vertical-ruins:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build protagonist and environment assets
+        run: |
+          set -euo pipefail
+          python scripts/build_protagonist_v27.py
+          python scripts/build_environment_v30.py
+
+      - name: Verify environment inventory
+        run: python scripts/verify_environment_art_v30.py
+
+      - name: Verify V34 expedition structure
+        run: node --experimental-default-type=module scripts/verify_vertical_ruins_v34.mjs
+
+      - name: Parse-check V34 runtime
+        run: node --check src/GameSceneV34.js
