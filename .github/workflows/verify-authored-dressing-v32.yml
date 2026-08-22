@@ -1,0 +1,38 @@
+name: Verify Authored Environment Dressing V32
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-authored-dressing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build protagonist assets
+        run: |
+          set -euo pipefail
+          python scripts/build_protagonist_v27.py
+
+      - name: Build environment objects
+        run: |
+          set -euo pipefail
+          python scripts/build_environment_v30.py
+
+      - name: Verify environment asset inventory
+        run: |
+          set -euo pipefail
+          python scripts/verify_environment_art_v30.py
+
+      - name: Verify authored V32 dressing
+        run: |
+          set -euo pipefail
+          node --experimental-default-type=module scripts/verify_authored_dressing_v32.mjs
+
+      - name: Parse-check V32 runtime
+        run: node --check src/GameSceneV32.js

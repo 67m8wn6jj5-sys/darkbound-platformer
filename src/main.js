@@ -1,6 +1,6 @@
-import { GameSceneV31 } from './GameSceneV31.js';
-// Live chain: GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
-// V31 restores the original gothic foreground tileset and replaces chunk-jittered platforms with coherent whole-room authored layouts.
+import { GameSceneV32 } from './GameSceneV32.js';
+// Live chain: GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
+// V32 keeps V31's coherent authored layouts, uses all three approved PixelLab tilesets for distinct layers, and restores candles/objects through authored placement slots.
 
 let game = null;
 let startTimer = null;
@@ -44,7 +44,7 @@ function startGame() {
       activePointers: 5
     },
     dom: { createContainer: true },
-    scene: [GameSceneV31],
+    scene: [GameSceneV32],
     render: { antialias: true, pixelArt: false }
   };
 
