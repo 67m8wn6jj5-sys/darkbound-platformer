@@ -1,6 +1,6 @@
-import { GameSceneV27 } from './GameSceneV27.js';
-// Live chain: GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
-// V27 restores the approved downward finisher to the ground combo and locks sword VFX directly to frame-authored blade motion.
+import { GameSceneV28 } from './GameSceneV28.js';
+// Live chain: GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
+// V28 replaces prototype arena geometry with modular gothic chunks, continuous encounter flow, and authored portcullis room seals.
 
 let game = null;
 let startTimer = null;
@@ -44,7 +44,7 @@ function startGame() {
       activePointers: 5
     },
     dom: { createContainer: true },
-    scene: [GameSceneV27],
+    scene: [GameSceneV28],
     render: { antialias: true, pixelArt: false }
   };
 
