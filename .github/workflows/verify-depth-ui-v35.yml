@@ -1,0 +1,29 @@
+name: Verify Textured Depth and Clean UI V35
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-depth-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build protagonist and environment assets
+        run: |
+          set -euo pipefail
+          python scripts/build_protagonist_v27.py
+          python scripts/build_environment_v30.py
+
+      - name: Verify V35 textured depth and UI cleanup
+        run: node --experimental-default-type=module scripts/verify_depth_ui_v35.mjs
+
+      - name: Parse-check V35 runtime
+        run: node --check src/GameSceneV35.js
