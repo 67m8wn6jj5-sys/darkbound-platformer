@@ -29,11 +29,12 @@ assert.deepEqual(reversedBladeTangentV29(4),{x:-8,y:-24});assert.deepEqual(rever
 const source=readFileSync('src/GameSceneV29.js','utf8');assert.match(source,/count-1-clamped/);assert.match(source,/Number\(frame\)\+1/);assert.match(source,/action!==['"]attack_1['"]/);
 
 const main=readFileSync('src/main.js','utf8');
+const v35=readFileSync('src/GameSceneV35.js','utf8');
 const v34=readFileSync('src/GameSceneV34.js','utf8');
 const v33=readFileSync('src/GameSceneV33.js','utf8');
 const v32=readFileSync('src/GameSceneV32.js','utf8');
 const v31=readFileSync('src/GameSceneV31.js','utf8');
 const v30=readFileSync('src/GameSceneV30.js','utf8');
-assert.match(main,/import \{ GameSceneV34 \} from '\.\/GameSceneV34\.js'/);assert.match(main,/scene: \[GameSceneV34\]/);assert.match(main,/GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28/);
-assert.match(v34,/extends GameSceneV33/);assert.match(v33,/extends GameSceneV32/);assert.match(v32,/extends GameSceneV31/);assert.match(v31,/extends GameSceneV30/);assert.match(v30,/extends GameSceneV29/);
-console.log('V29 reversed stab verification passed beneath V34.');
+assert.match(main,/import \{ GameSceneV35 \} from '\.\/GameSceneV35\.js'/);assert.match(main,/scene: \[GameSceneV35\]/);assert.match(main,/GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28/);
+assert.match(v35,/extends GameSceneV34/);assert.match(v34,/extends GameSceneV33/);assert.match(v33,/extends GameSceneV32/);assert.match(v32,/extends GameSceneV31/);assert.match(v31,/extends GameSceneV30/);assert.match(v30,/extends GameSceneV29/);
+console.log('V29 reversed stab verification passed beneath V35.');
