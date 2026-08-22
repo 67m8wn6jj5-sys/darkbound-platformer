@@ -76,10 +76,12 @@ assert.match(source,/AREA CLEARED • REACH THE GREEN GATE/);
 assert.match(source,/depth===0\|\|depth===2/);assert.match(source,/\[10,12,14,16\]/);
 
 const main=readFileSync('src/main.js','utf8');
+const v36=readFileSync('src/GameSceneV36.js','utf8');
 const v35=readFileSync('src/GameSceneV35.js','utf8');
-assert.match(main,/import \{ GameSceneV35 \} from '\.\/GameSceneV35\.js'/);
-assert.match(main,/scene: \[GameSceneV35\]/);
-assert.match(main,/GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29/);
+assert.match(main,/import \{ GameSceneV36 \} from '\.\/GameSceneV36\.js'/);
+assert.match(main,/scene: \[GameSceneV36\]/);
+assert.match(main,/GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29/);
+assert.match(v36,/extends GameSceneV35/);
 assert.match(v35,/extends GameSceneV34/);
 
-console.log('V34 vertical ruins expedition verification passed beneath V35.');
+console.log('V34 vertical ruins expedition verification passed beneath V36.');
