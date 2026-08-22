@@ -1,0 +1,30 @@
+name: Verify Long Traversal Foundation V33
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-long-traversal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build protagonist and environment assets
+        run: |
+          set -euo pipefail
+          python scripts/build_protagonist_v27.py
+          python scripts/build_environment_v30.py
+
+      - name: Verify environment inventory
+        run: python scripts/verify_environment_art_v30.py
+
+      - name: Verify V33 long traversal foundation
+        run: node --experimental-default-type=module scripts/verify_long_traversal_v33.mjs
+
+      - name: Parse-check V33 runtime
+        run: node --check src/GameSceneV33.js
