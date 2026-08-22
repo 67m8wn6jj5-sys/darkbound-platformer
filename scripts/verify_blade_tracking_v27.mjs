@@ -61,9 +61,11 @@ assert.doesNotMatch(source,/Phaser\.Math\.Between/,'V27 sword motes must not use
 assert.doesNotMatch(source,/super\.emitAttackMotionFx/,'V27 must fully replace the old character-centered effect');
 
 const main=readFileSync('src/main.js','utf8');
+const v30=readFileSync('src/GameSceneV30.js','utf8');
 const v29=readFileSync('src/GameSceneV29.js','utf8');
-assert.match(main,/import \{ GameSceneV29 \} from '\.\/GameSceneV29\.js'/,'current main must boot the latest scene');
-assert.match(main,/GameSceneV29 -> GameSceneV28 -> GameSceneV27/,'current live chain must retain V27 blade tracking underneath later passes');
+assert.match(main,/import \{ GameSceneV30 \} from '\.\/GameSceneV30\.js'/,'current main must boot the latest scene');
+assert.match(main,/GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27/,'current live chain must retain V27 blade tracking underneath later passes');
+assert.match(v30,/extends GameSceneV29/,'V30 must preserve V29 attack behavior');
 assert.match(v29,/extends GameSceneV28/,'V29 must preserve V28, which inherits V27');
 
 console.log('V27 restored downward ground finisher and blade-locked VFX inheritance verification passed.');
