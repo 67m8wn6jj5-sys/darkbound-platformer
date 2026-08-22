@@ -4,7 +4,7 @@ import { PIXELLAB_MANIFEST } from './pixellabManifest.js';
 
 const PLAYER_FEET_Y=24;
 const V17_ART_SCALE=.396;
-export const PROTAGONIST_ART_SCALE_V18=.4554;
+export const PROTAGONIST_ART_SCALE_V18=.50094;
 const VFX_GREEN=0x43ff57;
 const VFX_GREEN_HOT=0xbfff8f;
 const VFX_GREEN_CORE=0xf2ffe1;
