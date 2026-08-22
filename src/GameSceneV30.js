@@ -11,7 +11,7 @@ const FULL_STONE_FRAME=frameForTerrainMask(0);
 export const ENVIRONMENT_ART_V30=Object.freeze({
   foreground:Object.freeze({
     key:'gothic-ruins-terrain-v30',
-    path:'./pixellab-tileset-ancient-dark-gothic-stone-masonry-large-worn-cracked-stone-p-606f17e2.png?v=v30',
+    path:'./pixellab-tileset-solid-ancient-gothic-fortress-stone-platform-flat-walkable-g-e686e8eb.png?v=v30-platform-reset',
   }),
   background:Object.freeze({
     key:'gothic-ruins-background-v30',
@@ -76,8 +76,9 @@ export class GameSceneV30 extends GameSceneV29 {
     for(const asset of ENVIRONMENT_ART_V30.arches)this.load.image(asset.key,asset.path);
   }
 
-  // Use the new PixelLab stone terrain for every live V28 modular collider.
-  // Collision geometry remains exactly the same; only the rendered sheet changes.
+  // Use the dedicated solid/walkable PixelLab fortress terrain for every live
+  // modular collider. Collision geometry remains exactly the same; only the
+  // rendered foreground sheet changes.
   renderGothicTerrain(specs){
     const occupied=this.occupancyFor(specs);
     if(!occupied.size)return;
