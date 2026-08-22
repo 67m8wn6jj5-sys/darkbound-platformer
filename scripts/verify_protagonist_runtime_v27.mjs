@@ -25,7 +25,9 @@ const {TUNING}=await import('../src/config.js');
 const BASE='Sprite updates protagonist .zip';
 const TODAY_SWORD='Recreate_this_character-Sword_attack.zip';
 const TODAY_KO='Recreate_this_character-Ko_Gasumi_sword_atta.zip';
-assert.equal(PROTAGONIST_ART_SCALE_V18,.4554);
+// The protagonist was intentionally scaled up another 10% after V27.
+assert.equal(PROTAGONIST_ART_SCALE_V18,.50094);
+assert.ok(Math.abs(PROTAGONIST_ART_SCALE_V18/.4554-1.10)<1e-12,'current protagonist scale must preserve the later 10% size increase');
 assert.equal(PIXELLAB_MANIFEST.attack_1.sourceArchive,TODAY_KO);
 assert.equal(PIXELLAB_MANIFEST.attack_2.sourceArchive,TODAY_SWORD);
 assert.equal(PIXELLAB_MANIFEST.attack_3.sourceArchive,BASE);
@@ -91,5 +93,5 @@ assert.equal(v18.attackFrame('attack_3','east',3500),7,'8-frame downward finishe
 
 const main=readFileSync('src/main.js','utf8');
 assert.match(main,/GameSceneV27/);
-assert.match(main,/GameSceneV24/,'V27 must preserve the existing stage-flow inheritance chain');
-console.log('V27 protagonist source, combo, turning, buffering, and frame-sync verification passed.');
+assert.match(main,/GameSceneV24/,'current live chain must preserve the existing stage-flow inheritance');
+console.log('V27 protagonist source, current scale, combo, turning, buffering, and frame-sync verification passed.');

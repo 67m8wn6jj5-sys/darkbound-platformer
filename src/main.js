@@ -1,6 +1,6 @@
-import { GameSceneV28 } from './GameSceneV28.js';
-// Live chain: GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
-// V28 replaces prototype arena geometry with modular gothic chunks, continuous encounter flow, and authored portcullis room seals.
+import { GameSceneV29 } from './GameSceneV29.js';
+// Live chain: GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
+// V29 reverses the awkward attack-1 pullback into an intentional thrust while preserving V28 modular world generation and all established combat values.
 
 let game = null;
 let startTimer = null;
@@ -44,7 +44,7 @@ function startGame() {
       activePointers: 5
     },
     dom: { createContainer: true },
-    scene: [GameSceneV28],
+    scene: [GameSceneV29],
     render: { antialias: true, pixelArt: false }
   };
 

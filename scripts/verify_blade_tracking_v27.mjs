@@ -48,7 +48,7 @@ for(const [action,profile] of Object.entries(BLADE_TRACK_V27)){
 const forward=bladeTangentV27('attack_1',4);
 const rising=bladeTangentV27('attack_2',4);
 const downward=bladeTangentV27('attack_3',5);
-assert.ok(forward.x>0,'opening-cut mote motion should inherit forward blade travel');
+assert.ok(forward.x>0,'opening-cut mote motion should inherit forward blade travel in the underlying V27 profile');
 assert.ok(rising.y<0,'upward-cut mote motion must inherit upward blade travel');
 assert.ok(downward.y>0,'downward-finisher mote motion must inherit descending blade travel');
 
@@ -61,7 +61,9 @@ assert.doesNotMatch(source,/Phaser\.Math\.Between/,'V27 sword motes must not use
 assert.doesNotMatch(source,/super\.emitAttackMotionFx/,'V27 must fully replace the old character-centered effect');
 
 const main=readFileSync('src/main.js','utf8');
-assert.match(main,/import \{ GameSceneV27 \} from '\.\/GameSceneV27\.js'/);
-assert.match(main,/scene: \[GameSceneV27\]/);
+const v29=readFileSync('src/GameSceneV29.js','utf8');
+assert.match(main,/import \{ GameSceneV29 \} from '\.\/GameSceneV29\.js'/,'current main must boot the latest scene');
+assert.match(main,/GameSceneV29 -> GameSceneV28 -> GameSceneV27/,'current live chain must retain V27 blade tracking underneath later passes');
+assert.match(v29,/extends GameSceneV28/,'V29 must preserve V28, which inherits V27');
 
-console.log('V27 restored downward ground finisher and blade-locked VFX verification passed.');
+console.log('V27 restored downward ground finisher and blade-locked VFX inheritance verification passed.');
