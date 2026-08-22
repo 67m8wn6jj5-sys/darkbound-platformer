@@ -101,7 +101,7 @@ def main():
 
     manifest = {group: build_group(group, archives) for group, archives in GROUPS.items()}
     manifest['terrain'] = {
-        'foreground': 'pixellab-tileset-ancient-dark-gothic-stone-masonry-large-worn-cracked-stone-p-606f17e2.png',
+        'foreground': 'pixellab-tileset-solid-ancient-gothic-fortress-stone-platform-flat-walkable-g-e686e8eb.png',
         'background': 'pixellab-tileset-ancient-recessed-gothic-dungeon-wall-masonry-965b1f4b.png',
         'architecture': 'pixellab-tileset-ancient-gothic-stone-pillar-and-arch-masonry-919c3a88.png',
     }
