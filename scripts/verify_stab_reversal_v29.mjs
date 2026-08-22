@@ -78,8 +78,10 @@ assert.match(source,/Number\(frame\)\+1/,'attack-1 blade history must follow des
 assert.match(source,/action!==['"]attack_1['"]/,'only the opener should receive the custom reversal/VFX path');
 
 const main=readFileSync('src/main.js','utf8');
-assert.match(main,/import \{ GameSceneV29 \} from '\.\/GameSceneV29\.js'/);
-assert.match(main,/scene: \[GameSceneV29\]/);
-assert.match(main,/GameSceneV29 -> GameSceneV28/,'V29 must preserve the V28 modular world chain');
+const v30=readFileSync('src/GameSceneV30.js','utf8');
+assert.match(main,/import \{ GameSceneV30 \} from '\.\/GameSceneV30\.js'/);
+assert.match(main,/scene: \[GameSceneV30\]/);
+assert.match(main,/GameSceneV30 -> GameSceneV29 -> GameSceneV28/,'latest live chain must preserve the V29 stab and V28 world generation');
+assert.match(v30,/extends GameSceneV29/,'V30 must inherit the V29 reversed stab unchanged');
 
-console.log('V29 reversed stab opener and reversed blade-trace verification passed.');
+console.log('V29 reversed stab opener and reversed blade-trace inheritance verification passed.');
