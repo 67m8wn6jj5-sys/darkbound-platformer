@@ -1,0 +1,44 @@
+name: Verify PixelLab Environment V30
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-environment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build PixelLab environment assets
+        run: |
+          set -euo pipefail
+          python scripts/build_environment_v30.py
+
+      - name: Verify PixelLab environment integration
+        run: |
+          set -euo pipefail
+          python scripts/verify_environment_art_v30.py
+
+      - name: Parse-check V30 runtime
+        run: |
+          set -euo pipefail
+          node --check src/GameSceneV30.js
+          node --check src/main.js
+
+      - name: Verify generated static assets
+        run: |
+          set -euo pipefail
+          test -s assets/v30/environment/manifest.json
+          test -s assets/v30/environment/lights/lights_00.png
+          test -s assets/v30/environment/lights/lights_02.png
+          test -s assets/v30/environment/background/background_00.png
+          test -s assets/v30/environment/background/background_11.png
+          test -s assets/v30/environment/arches/arches_00.png
+          test -s assets/v30/environment/arches/arches_04.png
