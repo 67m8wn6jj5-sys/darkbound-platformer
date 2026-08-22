@@ -1,0 +1,36 @@
+name: Verify Authored Environment Layout V31
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-authored-layout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build protagonist assets
+        run: |
+          set -euo pipefail
+          python scripts/build_protagonist_v27.py
+
+      - name: Build environment assets
+        run: |
+          set -euo pipefail
+          python scripts/build_environment_v30.py
+
+      - name: Verify current environment art
+        run: |
+          set -euo pipefail
+          python scripts/verify_environment_art_v30.py
+
+      - name: Verify authored V31 room geometry
+        run: node --experimental-default-type=module scripts/verify_authored_layout_v31.mjs
+
+      - name: Parse-check V31 runtime
+        run: node --check src/GameSceneV31.js
