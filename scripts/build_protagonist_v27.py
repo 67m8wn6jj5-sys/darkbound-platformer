@@ -3,6 +3,7 @@ import json
 import shutil
 
 import normalize_protagonist as base
+import build_environment_v30
 
 # V27 deliberately restores the approved overhead/downward sword animation from
 # the current protagonist archive as attack_3. attack_1 and attack_2 remain the
@@ -74,6 +75,9 @@ def apply_downward_finisher():
 def main():
     base.main()
     apply_downward_finisher()
+    # Pages and the primary CI workflow already invoke this shared asset-build
+    # entry point, so build the uploaded PixelLab environment objects here too.
+    build_environment_v30.main()
 
 
 if __name__ == '__main__':
