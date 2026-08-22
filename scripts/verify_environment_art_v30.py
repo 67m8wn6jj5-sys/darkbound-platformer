@@ -71,6 +71,8 @@ def main():
         fail('a rejected platform tileset is still referenced by live V30 code')
     if 'pixellab-tileset-ancient-recessed-gothic-dungeon-wall-masonry-965b1f4b.png' not in source:
         fail('recessed PixelLab background wall is not live')
+    if 'pixellab-tileset-ancient-gothic-stone-pillar-and-arch-masonry-919c3a88.png' not in source:
+        fail('pillar/arch PixelLab architecture tileset is not available')
     if 'assets/v30/environment/lights/' not in source or 'assets/v30/environment/background/' not in source or 'assets/v30/environment/arches/' not in source:
         fail('V30 does not preload all PixelLab object groups')
     if 'super.dressModularWorldV28' in source:
@@ -79,19 +81,23 @@ def main():
         if placeholder in source:
             fail(f'V30 still calls placeholder environment art: {placeholder}')
     if not re.search(r'ENVIRONMENT_ART_V30\.lights\.length', source):
-        fail('V30 light selection is not driven by the PixelLab light set')
+        fail('V30 light inventory is not driven by the PixelLab light set')
 
     main_source = (ROOT / 'src' / 'main.js').read_text()
+    v32_source = (ROOT / 'src' / 'GameSceneV32.js').read_text()
     v31_source = (ROOT / 'src' / 'GameSceneV31.js').read_text()
-    if "import { GameSceneV31 } from './GameSceneV31.js'" not in main_source or 'scene: [GameSceneV31]' not in main_source:
-        fail('main.js does not boot V31')
-    if 'GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28' not in main_source:
-        fail('main.js does not document the preserved V31/V30/V29/V28 chain')
+    if "import { GameSceneV32 } from './GameSceneV32.js'" not in main_source or 'scene: [GameSceneV32]' not in main_source:
+        fail('main.js does not boot V32')
+    if 'GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28' not in main_source:
+        fail('main.js does not document the preserved V32/V31/V30/V29/V28 chain')
+    if 'extends GameSceneV31' not in v32_source:
+        fail('V32 must preserve the V31 authored-layout layer')
     if 'extends GameSceneV30' not in v31_source:
-        fail('V31 must preserve the V30 art layer and V29 combat chain')
+        fail('V31 must preserve the V30 art inventory and V29 combat chain')
 
-    print('V30/V31 PixelLab environment art verification passed.')
-    print('Live terrain: original approved gothic foreground + recessed gothic background wall.')
+    print('V30/V31/V32 PixelLab environment art verification passed.')
+    print('Live terrain: original gothic foreground + recessed wall + pillar/arch architecture layer.')
+    print('Built objects: 3 lights, 12 background objects, 5 arch objects.')
     print('Both rejected platform tilesets are absent from the repository.')
 
 
