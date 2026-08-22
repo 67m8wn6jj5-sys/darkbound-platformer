@@ -65,8 +65,10 @@ assert.match(source,/beginBossLunge/);
 assert.match(source,/beginBossSlam/);
 
 const main=readFileSync('src/main.js','utf8');
-assert.match(main,/import \{ GameSceneV35 \} from '\.\/GameSceneV35\.js'/);
-assert.match(main,/scene: \[GameSceneV35\]/);
-assert.match(main,/GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29/);
+const v36=readFileSync('src/GameSceneV36.js','utf8');
+assert.match(main,/import \{ GameSceneV36 \} from '\.\/GameSceneV36\.js'/);
+assert.match(main,/scene: \[GameSceneV36\]/);
+assert.match(main,/GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29/);
+assert.match(v36,/extends GameSceneV35/);
 
-console.log('V35 strong textured depth, hidden prototype HUD, and geometry-free telegraph verification passed.');
+console.log('V35 strong textured depth, hidden prototype HUD, and geometry-free telegraph verification passed beneath V36.');
