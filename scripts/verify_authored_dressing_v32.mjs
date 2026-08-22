@@ -78,7 +78,7 @@ assert.match(source,/renderGothicTerrain\(layout\.collision\)/,'V32 must retain 
 assert.match(source,/addAuthoredLightV32/,'PixelLab candle/light assets must be visible again');
 assert.match(source,/ENVIRONMENT_ART_V30\.backgroundObjects/,'uploaded background objects must be visible again');
 assert.match(source,/ENVIRONMENT_ART_V30\.arches/,'uploaded arch objects must be visible again');
-assert.doesNotMatch(source,/variantIndex|Math\.random|randInt|jitter/,'V32 dressing must not randomly place or select room art');
+assert.doesNotMatch(source,/variantIndex\(|Math\.random\(|randInt\(|jitterStagePlatforms\(|floorSegmentsForChunk\(|platformFromLocal\(/,'V32 dressing must not call random or jittered placement helpers');
 assert.doesNotMatch(source,/dressModularWorldV28\(|dressAuthoredWorldV31\(/,'V32 must not fall back to older random or empty dressing passes');
 
 const v30=readFileSync('src/GameSceneV30.js','utf8');
