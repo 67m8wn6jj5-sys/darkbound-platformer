@@ -26,6 +26,6 @@ for(const template of ['duel','hunters','mixed','crossfire','pressure','barrage'
 assert.deepEqual(generateAuthoredStageV31(9512,0,'duel'),generateAuthoredStageV31(9512,0,'duel'));
 const source=readFileSync('src/GameSceneV31.js','utf8');assert.doesNotMatch(source,/generateModularStageV28|dressModularWorldV28\(|randInt|jitterStagePlatforms|floorSegmentsForChunk|platformFromLocal/);
 const v30=readFileSync('src/GameSceneV30.js','utf8');assert.match(v30,/pixellab-tileset-ancient-dark-gothic-stone-masonry-large-a89e3ba5\.png/);assert.doesNotMatch(v30,/606f17e2|e686e8eb/);
-const main=readFileSync('src/main.js','utf8');const v34=readFileSync('src/GameSceneV34.js','utf8');const v33=readFileSync('src/GameSceneV33.js','utf8');const v32=readFileSync('src/GameSceneV32.js','utf8');
-assert.match(main,/import \{ GameSceneV34 \} from '\.\/GameSceneV34\.js'/);assert.match(main,/scene: \[GameSceneV34\]/);assert.match(v34,/extends GameSceneV33/);assert.match(v33,/extends GameSceneV32/);assert.match(v32,/extends GameSceneV31/);
-console.log('Historical V31 authored-layout verification passed beneath V34.');
+const main=readFileSync('src/main.js','utf8');const v35=readFileSync('src/GameSceneV35.js','utf8');const v34=readFileSync('src/GameSceneV34.js','utf8');const v33=readFileSync('src/GameSceneV33.js','utf8');const v32=readFileSync('src/GameSceneV32.js','utf8');
+assert.match(main,/import \{ GameSceneV35 \} from '\.\/GameSceneV35\.js'/);assert.match(main,/scene: \[GameSceneV35\]/);assert.match(v35,/extends GameSceneV34/);assert.match(v34,/extends GameSceneV33/);assert.match(v33,/extends GameSceneV32/);assert.match(v32,/extends GameSceneV31/);
+console.log('Historical V31 authored-layout verification passed beneath V35.');
