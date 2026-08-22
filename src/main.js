@@ -1,6 +1,6 @@
-import { GameSceneV30 } from './GameSceneV30.js';
-// Live chain: GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
-// V30 replaces hand-drawn modular-room dressing with the uploaded PixelLab terrain, background masonry, lights, background objects, and arch objects.
+import { GameSceneV31 } from './GameSceneV31.js';
+// Live chain: GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
+// V31 restores the original gothic foreground tileset and replaces chunk-jittered platforms with coherent whole-room authored layouts.
 
 let game = null;
 let startTimer = null;
@@ -44,7 +44,7 @@ function startGame() {
       activePointers: 5
     },
     dom: { createContainer: true },
-    scene: [GameSceneV30],
+    scene: [GameSceneV31],
     render: { antialias: true, pixelArt: false }
   };
 
