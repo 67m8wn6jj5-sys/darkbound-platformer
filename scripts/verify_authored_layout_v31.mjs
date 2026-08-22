@@ -25,7 +25,7 @@ const {
 }=await import('../src/GameSceneV31.js');
 
 assert.deepEqual(Object.keys(AUTHORED_STAGE_V31),['grandNave','cryptStair','ruinedGallery','choirLoft']);
-assert.ok(GameSceneV31.prototype.rebuildRoomLayout,'V31 must own the live non-boss room rebuild');
+assert.ok(GameSceneV31.prototype.rebuildRoomLayout,'V31 must own the authored non-boss room geometry');
 
 for(const [id,authored] of Object.entries(AUTHORED_STAGE_V31)){
   assert.ok(authored.platforms.length>=5&&authored.platforms.length<=7,`${id} should stay sparse and readable`);
@@ -71,15 +71,17 @@ const source=readFileSync('src/GameSceneV31.js','utf8');
 assert.doesNotMatch(source,/generateModularStageV28/,'V31 must not use the old random chunk generator');
 assert.doesNotMatch(source,/dressModularWorldV28\(/,'V31 must not stamp V30 random props into the room');
 assert.doesNotMatch(source,/randInt|jitterStagePlatforms|floorSegmentsForChunk|platformFromLocal/,'V31 geometry must not jitter individual platforms or pits');
-assert.match(source,/for\(const base of BACKGROUND_BASES\)this\.addBackgroundWallV30/,'V31 should keep only the coherent background wall layer during the reset');
+assert.match(source,/for\(const base of BACKGROUND_BASES\)this\.addBackgroundWallV30/,'V31 reset layer should retain its sparse fallback background');
 
 const v30=readFileSync('src/GameSceneV30.js','utf8');
 assert.match(v30,/pixellab-tileset-ancient-dark-gothic-stone-masonry-large-a89e3ba5\.png/,'V31 must inherit the original approved foreground terrain');
 assert.doesNotMatch(v30,/606f17e2|e686e8eb/,'rejected platform tilesets must not remain in live terrain code');
 
 const main=readFileSync('src/main.js','utf8');
-assert.match(main,/import \{ GameSceneV31 \} from '\.\/GameSceneV31\.js'/);
-assert.match(main,/scene: \[GameSceneV31\]/);
-assert.match(main,/GameSceneV31 -> GameSceneV30 -> GameSceneV29/);
+const v32=readFileSync('src/GameSceneV32.js','utf8');
+assert.match(main,/import \{ GameSceneV32 \} from '\.\/GameSceneV32\.js'/);
+assert.match(main,/scene: \[GameSceneV32\]/);
+assert.match(main,/GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29/);
+assert.match(v32,/extends GameSceneV31/,'V32 must preserve V31 authored traversal exactly');
 
-console.log('V31 original terrain + authored whole-room traversal verification passed.');
+console.log('V31 original terrain + authored whole-room traversal verification passed beneath V32.');
