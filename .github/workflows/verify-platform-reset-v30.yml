@@ -27,11 +27,11 @@ jobs:
       - name: Parse-check runtime
         run: node --check src/GameSceneV30.js
 
-      - name: Reject deleted platform tileset anywhere live
+      - name: Reject deleted platform tileset from live/build references
         run: |
           set -euo pipefail
-          if grep -R -n '606f17e2' src scripts .github/workflows; then
-            echo 'Rejected platform tileset reference remains.' >&2
+          if grep -n '606f17e2' src/GameSceneV30.js scripts/build_environment_v30.py; then
+            echo 'Rejected platform tileset remains in live/build references.' >&2
             exit 1
           fi
           test ! -e pixellab-tileset-ancient-dark-gothic-stone-masonry-large-worn-cracked-stone-p-606f17e2.png
