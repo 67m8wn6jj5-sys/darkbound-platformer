@@ -1,4 +1,4 @@
-name: Verify Platform Tileset Reset V30
+name: Verify Platform Tileset Reset V31
 
 on:
   pull_request:
@@ -25,14 +25,17 @@ jobs:
           python scripts/verify_environment_art_v30.py
 
       - name: Parse-check runtime
-        run: node --check src/GameSceneV30.js
+        run: |
+          node --check src/GameSceneV30.js
+          node --check src/GameSceneV31.js
 
-      - name: Reject deleted platform tileset from live/build references
+      - name: Require original terrain and reject both deleted platform sets
         run: |
           set -euo pipefail
-          if grep -n '606f17e2' src/GameSceneV30.js scripts/build_environment_v30.py; then
-            echo 'Rejected platform tileset remains in live/build references.' >&2
+          test -s pixellab-tileset-ancient-dark-gothic-stone-masonry-large-a89e3ba5.png
+          test ! -e pixellab-tileset-ancient-dark-gothic-stone-masonry-large-worn-cracked-stone-p-606f17e2.png
+          test ! -e pixellab-tileset-solid-ancient-gothic-fortress-stone-platform-flat-walkable-g-e686e8eb.png
+          if grep -n -E '606f17e2|e686e8eb' src/GameSceneV30.js scripts/build_environment_v30.py; then
+            echo 'A rejected platform tileset remains in live/build references.' >&2
             exit 1
           fi
-          test ! -e pixellab-tileset-ancient-dark-gothic-stone-masonry-large-worn-cracked-stone-p-606f17e2.png
-          test -s pixellab-tileset-solid-ancient-gothic-fortress-stone-platform-flat-walkable-g-e686e8eb.png

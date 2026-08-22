@@ -7,8 +7,11 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'assets' / 'v30' / 'environment'
 MANIFEST = OUT / 'manifest.json'
 PNG_SIGNATURE = b'\x89PNG\r\n\x1a\n'
-REJECTED_PLATFORM = ROOT / 'pixellab-tileset-ancient-dark-gothic-stone-masonry-large-worn-cracked-stone-p-606f17e2.png'
-SOLID_PLATFORM = 'pixellab-tileset-solid-ancient-gothic-fortress-stone-platform-flat-walkable-g-e686e8eb.png'
+ORIGINAL_PLATFORM = 'pixellab-tileset-ancient-dark-gothic-stone-masonry-large-a89e3ba5.png'
+REJECTED_PLATFORMS = [
+    ROOT / 'pixellab-tileset-ancient-dark-gothic-stone-masonry-large-worn-cracked-stone-p-606f17e2.png',
+    ROOT / 'pixellab-tileset-solid-ancient-gothic-fortress-stone-platform-flat-walkable-g-e686e8eb.png',
+]
 
 
 def fail(message):
@@ -47,24 +50,25 @@ def main():
                 fail(f'{group}[{index}] lost source PNG provenance')
 
     terrain = manifest.get('terrain') or {}
-    if terrain.get('foreground') != SOLID_PLATFORM:
-        fail(f'foreground terrain must be the dedicated solid platform tileset, got {terrain.get("foreground")}')
+    if terrain.get('foreground') != ORIGINAL_PLATFORM:
+        fail(f'foreground terrain must be the original approved gothic tileset, got {terrain.get("foreground")}')
     for role in ('foreground', 'background', 'architecture'):
         source = ROOT / terrain.get(role, '')
         if not source.exists():
             fail(f'{role} PixelLab tileset missing: {source}')
         validate_png(source)
 
-    if REJECTED_PLATFORM.exists():
-        fail('rejected worn/cracked platform tileset must be deleted from the repository')
+    for rejected in REJECTED_PLATFORMS:
+        if rejected.exists():
+            fail(f'rejected platform tileset must be deleted from the repository: {rejected.name}')
 
     source = (ROOT / 'src' / 'GameSceneV30.js').read_text()
     if "extends GameSceneV29" not in source:
         fail('V30 must preserve V29 attack behavior')
-    if SOLID_PLATFORM not in source:
-        fail('dedicated solid/walkable PixelLab platform tileset is not live')
-    if '606f17e2' in source:
-        fail('rejected worn/cracked platform tileset is still referenced by live code')
+    if ORIGINAL_PLATFORM not in source:
+        fail('original approved gothic PixelLab terrain is not live')
+    if '606f17e2' in source or 'e686e8eb' in source:
+        fail('a rejected platform tileset is still referenced by live V30 code')
     if 'pixellab-tileset-ancient-recessed-gothic-dungeon-wall-masonry-965b1f4b.png' not in source:
         fail('recessed PixelLab background wall is not live')
     if 'assets/v30/environment/lights/' not in source or 'assets/v30/environment/background/' not in source or 'assets/v30/environment/arches/' not in source:
@@ -78,15 +82,17 @@ def main():
         fail('V30 light selection is not driven by the PixelLab light set')
 
     main_source = (ROOT / 'src' / 'main.js').read_text()
-    if "import { GameSceneV30 } from './GameSceneV30.js'" not in main_source or 'scene: [GameSceneV30]' not in main_source:
-        fail('main.js does not boot V30')
-    if 'GameSceneV30 -> GameSceneV29 -> GameSceneV28' not in main_source:
-        fail('main.js does not document the preserved V30/V29/V28 chain')
+    v31_source = (ROOT / 'src' / 'GameSceneV31.js').read_text()
+    if "import { GameSceneV31 } from './GameSceneV31.js'" not in main_source or 'scene: [GameSceneV31]' not in main_source:
+        fail('main.js does not boot V31')
+    if 'GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28' not in main_source:
+        fail('main.js does not document the preserved V31/V30/V29/V28 chain')
+    if 'extends GameSceneV30' not in v31_source:
+        fail('V31 must preserve the V30 art layer and V29 combat chain')
 
-    print('V30 PixelLab environment art verification passed.')
-    print('Built assets: 3 lights, 12 background objects, 5 arch objects.')
-    print('Live terrain: dedicated solid/walkable foreground platform + recessed gothic background wall.')
-    print('Rejected worn/cracked platform tileset is absent.')
+    print('V30/V31 PixelLab environment art verification passed.')
+    print('Live terrain: original approved gothic foreground + recessed gothic background wall.')
+    print('Both rejected platform tilesets are absent from the repository.')
 
 
 if __name__ == '__main__':
