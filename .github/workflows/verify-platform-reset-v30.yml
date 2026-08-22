@@ -1,0 +1,38 @@
+name: Verify Platform Tileset Reset V30
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-platform-reset:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build environment assets
+        run: |
+          set -euo pipefail
+          python scripts/build_environment_v30.py
+
+      - name: Verify environment art
+        run: |
+          set -euo pipefail
+          python scripts/verify_environment_art_v30.py
+
+      - name: Parse-check runtime
+        run: node --check src/GameSceneV30.js
+
+      - name: Reject deleted platform tileset from live/build references
+        run: |
+          set -euo pipefail
+          if grep -n '606f17e2' src/GameSceneV30.js scripts/build_environment_v30.py; then
+            echo 'Rejected platform tileset remains in live/build references.' >&2
+            exit 1
+          fi
+          test ! -e pixellab-tileset-ancient-dark-gothic-stone-masonry-large-worn-cracked-stone-p-606f17e2.png
+          test -s pixellab-tileset-solid-ancient-gothic-fortress-stone-platform-flat-walkable-g-e686e8eb.png
