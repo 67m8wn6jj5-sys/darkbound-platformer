@@ -1,6 +1,6 @@
-import { GameSceneV35 } from './GameSceneV35.js';
-// Live chain: GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
-// V35 makes the uploaded masonry/architecture backgrounds visibly readable, adds layered architectural depth, removes prototype playfield text, and replaces neon geometric telegraphs with sprite-based tells.
+import { GameSceneV36 } from './GameSceneV36.js';
+// Live chain: GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
+// V36 polishes the V34 expedition foundation with stronger architectural composition, terrain depth, candle lighting, atmospheric layers, and smoother camera look-ahead while preserving gameplay rules.
 
 let game = null;
 let startTimer = null;
@@ -44,7 +44,7 @@ function startGame() {
       activePointers: 5
     },
     dom: { createContainer: true },
-    scene: [GameSceneV35],
+    scene: [GameSceneV36],
     render: { antialias: true, pixelArt: false }
   };
 
