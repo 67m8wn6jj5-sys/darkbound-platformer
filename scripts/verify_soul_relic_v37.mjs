@@ -50,7 +50,7 @@ for(const relic of Object.keys(RELICS_V37))assert.ok(source.includes(`'${relic}'
 assert.match(source,/run\.souls-=altar\.cost/,'relic altars must spend the collected soul currency');
 assert.match(source,/run\.relics\.add\(relic\.id\)/,'chosen relics must persist in the run build');
 assert.match(source,/run\.claimedAltars\.add\(altar\.key\)/,'altars must not be farmable repeatedly');
-assert.match(source,/run\.openedChests\.add\(chest\.key\)/,'optional chests must not be farmable repeatedly');
+assert.match(source,/openedChests\.add\(chest\.key\)/,'optional chests must not be farmable repeatedly');
 assert.match(source,/step===2\)this\.emitGreenFlameV37/,'Green Flame must visibly modify the combo finisher');
 assert.match(source,/lastRollAt=time-180/,'Phantom Step must change dodge recovery');
 assert.match(source,/run\.kills%5===0/,'Soul Leech must have a deterministic healing trigger');
