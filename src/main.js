@@ -1,6 +1,6 @@
-import { GameSceneV36 } from './GameSceneV36.js';
-// Live chain: GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
-// V36 polishes the V34 expedition foundation with stronger architectural composition, terrain depth, candle lighting, atmospheric layers, and smoother camera look-ahead while preserving gameplay rules.
+import { GameSceneV37 } from './GameSceneV37.js';
+// Live chain: GameSceneV37 -> GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
+// V37 adds the first real run reward loop: physical soul drops, collectible run currency, authored relic altars, optional upper-route chests, a guaranteed elite encounter, and meaningful relic effects while preserving V36 presentation and V34 traversal.
 
 let game = null;
 let startTimer = null;
@@ -44,7 +44,7 @@ function startGame() {
       activePointers: 5
     },
     dom: { createContainer: true },
-    scene: [GameSceneV36],
+    scene: [GameSceneV37],
     render: { antialias: true, pixelArt: false }
   };
 
