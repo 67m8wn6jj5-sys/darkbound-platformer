@@ -1,0 +1,28 @@
+name: Verify Protagonist Render V39
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'scripts/verify_protagonist_render_v39.mjs'
+      - '.github/workflows/verify-protagonist-render-v39.yml'
+  workflow_dispatch:
+
+jobs:
+  verify-player-v39:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build protagonist and environment assets
+        run: |
+          set -euo pipefail
+          python scripts/build_protagonist_v27.py
+      - name: Verify V39 protagonist rescue layer
+        run: |
+          set -euo pipefail
+          node scripts/verify_protagonist_render_v39.mjs
+      - name: Parse-check V39 runtime
+        run: |
+          set -euo pipefail
+          node --check src/GameSceneV39.js
+          node --check src/main.js
