@@ -1,7 +1,8 @@
 import { GameSceneV38 } from './GameSceneV38.js';
 import './v38ProtagonistVisibilityFix.js';
+import './GameSceneV39.js';
 // Live chain: GameSceneV38 -> GameSceneV37 -> GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
-// V38 replaces the first-area corridor with a hand-authored multi-layer Cathedral graph and adds one aerial dash, minor dash-contact damage, and downward-finisher visuals for all airborne attacks while preserving V37 Souls/relics and the established ground combo.
+// V39 is a side-effect hotfix layered onto V38: PR #31 keeps the player display object alive, while V39 reloads every protagonist frame under fresh cache-busted keys so Safari cannot reuse a stale/missing player texture.
 
 let game = null;
 let startTimer = null;
