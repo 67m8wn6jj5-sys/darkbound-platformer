@@ -74,25 +74,26 @@ def main():
             fail(f'environment inventory reference missing: {token}')
 
     main_source = (ROOT / 'src' / 'main.js').read_text()
+    v37 = (ROOT / 'src' / 'GameSceneV37.js').read_text()
     v36 = (ROOT / 'src' / 'GameSceneV36.js').read_text()
     v35 = (ROOT / 'src' / 'GameSceneV35.js').read_text()
     v34 = (ROOT / 'src' / 'GameSceneV34.js').read_text()
-    if "import { GameSceneV36 } from './GameSceneV36.js'" not in main_source or 'scene: [GameSceneV36]' not in main_source:
-        fail('main.js does not boot V36')
-    if 'GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29' not in main_source:
-        fail('main.js does not document the preserved V36 inheritance chain')
-    if 'extends GameSceneV35' not in v36 or 'extends GameSceneV34' not in v35 or 'extends GameSceneV33' not in v34:
-        fail('V36 must preserve the V35/V34/V33/combat runtime inheritance chain')
-    for live in (v34, v35, v36):
+    if "import { GameSceneV37 } from './GameSceneV37.js'" not in main_source or 'scene: [GameSceneV37]' not in main_source:
+        fail('main.js does not boot V37')
+    if 'GameSceneV37 -> GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29' not in main_source:
+        fail('main.js does not document the preserved V37 inheritance chain')
+    if 'extends GameSceneV36' not in v37 or 'extends GameSceneV35' not in v36 or 'extends GameSceneV34' not in v35 or 'extends GameSceneV33' not in v34:
+        fail('V37 must preserve the V36/V35/V34/V33/combat runtime inheritance chain')
+    for live in (v34, v35, v36, v37):
         if 'ENVIRONMENT_ART_V30.background.key' not in live or 'ENVIRONMENT_ART_V30.architecture.key' not in live:
-            fail('live V34/V35/V36 stack must use the approved background and architecture tilesets')
+            fail('live V34-V37 stack must retain the approved background and architecture tilesets')
     if 'ENVIRONMENT_ART_V30.backgroundObjects' not in v34 or 'ENVIRONMENT_ART_V30.backgroundObjects' not in v36:
         fail('live stack should retain restrained authored background-object accents')
-    if any('ENVIRONMENT_ART_V30.arches' in live for live in (v34, v35, v36)):
-        fail('live V34/V35/V36 must not enlarge/reuse the rejected incomplete arch-object exports')
+    if any('ENVIRONMENT_ART_V30.arches' in live for live in (v34, v35, v36, v37)):
+        fail('live V34-V37 stack must not enlarge/reuse the rejected incomplete arch-object exports')
 
-    print('Environment inventory + V36 layered-world verification passed.')
-    print('Live V36 art: original foreground + approved masonry/architecture tilesets + restrained authored props/lights.')
+    print('Environment inventory + V37 layered-world verification passed.')
+    print('Live V37 art preserves V36: original foreground + approved masonry/architecture tilesets + restrained authored props/lights.')
     print('Rejected platform tilesets and tiny arch-object exports remain excluded from live presentation.')
 
 
