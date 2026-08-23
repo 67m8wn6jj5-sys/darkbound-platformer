@@ -1,6 +1,6 @@
-import { GameSceneV38 } from './GameSceneV38.js';
-// Live chain: GameSceneV38 -> GameSceneV37 -> GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
-// V38 replaces the first-area corridor with a hand-authored multi-layer Cathedral graph and adds one aerial dash, minor dash-contact damage, and downward-finisher visuals for all airborne attacks while preserving V37 Souls/relics and the established ground combo.
+import { GameSceneV39 } from './GameSceneV39.js';
+// Live chain: GameSceneV39 -> GameSceneV38 -> GameSceneV37 -> GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
+// V39 is a protagonist-render hotfix: it cache-busts and remaps every player animation frame to a fresh texture stream and keeps the real protagonist art visible above V38's multi-layer Cathedral while preserving V38 gameplay.
 
 let game = null;
 let startTimer = null;
@@ -44,7 +44,7 @@ function startGame() {
       activePointers: 5
     },
     dom: { createContainer: true },
-    scene: [GameSceneV38],
+    scene: [GameSceneV39],
     render: { antialias: true, pixelArt: false }
   };
 
