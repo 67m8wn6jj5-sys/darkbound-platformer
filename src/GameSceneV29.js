@@ -5,6 +5,7 @@ import { PIXELLAB_MANIFEST } from './pixellabManifest.js';
 
 const VFX_GREEN=0x43ff57;
 const VFX_GREEN_HOT=0xbfff8f;
+const REVERSED_ATTACKS_V29=new Set(['attack_1','attack_2']);
 
 function sourceDirection(meta,direction){
   if(direction==='west'&&meta?.mirrorWest)return meta.mirrorSourceDirection||'east';
@@ -27,21 +28,24 @@ function normalize(x,y){
   return{x:x/length,y:y/length};
 }
 
-// V29 turns the awkward attack-1 pullback into an intentional thrust by
-// playing the exact approved sprite sequence backward. The other two attacks
-// keep their existing frame order and all gameplay timing remains unchanged.
+// V29 plays attacks 1 and 2 backward so both approved source sequences read
+// as committed sword swings instead of pullbacks. Attack 3 keeps its original
+// order. This is visual only: gameplay timing, hit windows, range, damage and
+// knockback continue to come from the unchanged combat tuning.
 export function reverseAttackFrameV29(action,direction,forwardFrame){
-  if(action!=='attack_1')return forwardFrame;
+  if(!REVERSED_ATTACKS_V29.has(action))return forwardFrame;
   const count=frameCount(action,direction);
   const clamped=Math.max(0,Math.min(count-1,Number(forwardFrame)||0));
   return count-1-clamped;
 }
 
 // V27's blade anchors remain correct for each individual sprite frame, but its
-// history assumes frames advance numerically. attack_1 now runs downward, so
-// the actual previous tracked frame is frame+1.
-export function reversedBladeTangentV29(frame){
-  const profile=BLADE_TRACK_V27.attack_1;
+// history assumes frames advance numerically. Reversed attacks run downward,
+// so the actual previous tracked frame is frame+1.
+export function reversedBladeTangentV29(actionOrFrame,maybeFrame){
+  const action=maybeFrame===undefined?'attack_1':actionOrFrame;
+  const frame=maybeFrame===undefined?actionOrFrame:maybeFrame;
+  const profile=BLADE_TRACK_V27[action];
   const current=profile?.frames?.[frame];
   if(!current)return{x:0,y:0};
   const previous=profile.frames?.[Number(frame)+1];
@@ -58,12 +62,12 @@ export class GameSceneV29 extends GameSceneV28 {
   }
 
   emitAttackMotionFx(action,frame,time){
-    if(action!=='attack_1'){
+    if(!REVERSED_ATTACKS_V29.has(action)){
       super.emitAttackMotionFx(action,frame,time);
       return;
     }
 
-    const profile=BLADE_TRACK_V27.attack_1;
+    const profile=BLADE_TRACK_V27[action];
     const anchor=profile?.frames?.[frame];
     if(!profile||!anchor)return;
 
@@ -116,7 +120,7 @@ export class GameSceneV29 extends GameSceneV28 {
 
     if(!profile.moteFrames.includes(frame))return;
     const facing=this.facing<0?-1:1;
-    const tangent=reversedBladeTangentV29(frame);
+    const tangent=reversedBladeTangentV29(action,frame);
     const direction=normalize(facing*tangent.x,tangent.y);
     const moteStart=lerpPoint(root,tip,.88);
     const drift=profile.moteDrift*PROTAGONIST_ART_SCALE_V18;
