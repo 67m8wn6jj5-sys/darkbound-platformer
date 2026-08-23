@@ -14,7 +14,7 @@ globalThis.Phaser={
   Scene:class Scene{},
   BlendModes:{ADD:'ADD'},
   Input:{Keyboard:{JustDown:()=>false}},
-  Math:{Between:(a)=>a,Clamp:(value,min,max)=>Math.max(min,Math.min(max,value))},
+  Math:{Between:(a)=>a,Clamp:(value,min,max)=>Math.max(min,Math.min(max,value)),Linear:(a,b,t)=>a+(b-a)*t},
   Utils:{Array:{GetRandom:(values)=>values[0],Shuffle:(values)=>values}},
 };
 
@@ -63,8 +63,10 @@ assert.match(source,/openRouteChoice/,'branch depths must still present the rout
 assert.doesNotMatch(source,/super\.openReward\(/,'V37 must not revive the old three-card stat reward screen');
 
 const main=readFileSync('src/main.js','utf8');
-assert.match(main,/import \{ GameSceneV37 \} from '\.\/GameSceneV37\.js'/);
-assert.match(main,/scene: \[GameSceneV37\]/);
-assert.match(main,/GameSceneV37 -> GameSceneV36 -> GameSceneV35 -> GameSceneV34/);
+const v38=readFileSync('src/GameSceneV38.js','utf8');
+assert.match(main,/import \{ GameSceneV38 \} from '\.\/GameSceneV38\.js'/);
+assert.match(main,/scene: \[GameSceneV38\]/);
+assert.match(main,/GameSceneV38 -> GameSceneV37 -> GameSceneV36 -> GameSceneV35 -> GameSceneV34/);
+assert.match(v38,/extends GameSceneV37/);
 
-console.log('V37 Soul & Relic gameplay-loop verification passed.');
+console.log('V37 Soul & Relic gameplay-loop verification passed beneath V38.');
