@@ -1,0 +1,29 @@
+name: Verify Soul and Relic Loop V37
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-soul-relic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build protagonist and environment assets
+        run: |
+          set -euo pipefail
+          python scripts/build_protagonist_v27.py
+          python scripts/build_environment_v30.py
+
+      - name: Verify V37 soul and relic loop
+        run: node --experimental-default-type=module scripts/verify_soul_relic_v37.mjs
+
+      - name: Parse-check V37 runtime
+        run: node --check src/GameSceneV37.js
