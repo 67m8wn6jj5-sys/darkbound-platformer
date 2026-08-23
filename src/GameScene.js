@@ -472,7 +472,8 @@ export class GameScene extends Phaser.Scene {
     this.player.scaleX=this.facing;
     this.enemies.forEach((enemy,index)=>this.updateEnemy(enemy,time,index));
 
-    if(this.player.y>TUNING.respawnY){
+    const fallResetY=this.environmentLayout?.fallResetY??TUNING.respawnY;
+    if(this.player.y>fallResetY){
       this.player.setPosition(150,540);
       b.setVelocity(0,0);
       this.playerHp=Math.max(1,this.playerHp-1);

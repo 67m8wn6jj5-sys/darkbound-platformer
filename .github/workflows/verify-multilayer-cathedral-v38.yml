@@ -1,0 +1,24 @@
+name: Verify Multi-Layer Cathedral V38
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'scripts/verify_multilayer_cathedral_v38.mjs'
+      - '.github/workflows/verify-multilayer-cathedral-v38.yml'
+  workflow_dispatch:
+
+jobs:
+  verify-cathedral-v38:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build protagonist and environment assets
+        run: |
+          set -euo pipefail
+          python scripts/build_protagonist_v27.py
+          python scripts/build_environment_v30.py
+      - name: Verify V38 Cathedral topology and aerial combat
+        run: node --experimental-default-type=module scripts/verify_multilayer_cathedral_v38.mjs
+      - name: Parse-check V38 runtime
+        run: node --check src/GameSceneV38.js
