@@ -1,7 +1,8 @@
-import { GameSceneV39 } from './GameSceneV39.js';
+import { GameSceneV38 } from './GameSceneV38.js';
 import './v38ProtagonistVisibilityFix.js';
-// Live chain: GameSceneV39 -> GameSceneV38 -> GameSceneV37 -> GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
-// V39 keeps the V38 visibility guard and also reloads every protagonist animation frame under fresh cache-busted texture keys so Safari cannot reuse a stale/missing player texture.
+import './GameSceneV39.js';
+// Live chain: GameSceneV38 -> GameSceneV37 -> GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
+// V39 is a side-effect hotfix layered onto V38: PR #31 keeps the player display object alive, while V39 reloads every protagonist frame under fresh cache-busted keys so Safari cannot reuse a stale/missing player texture.
 
 let game = null;
 let startTimer = null;
@@ -45,7 +46,7 @@ function startGame() {
       activePointers: 5
     },
     dom: { createContainer: true },
-    scene: [GameSceneV39],
+    scene: [GameSceneV38],
     render: { antialias: true, pixelArt: false }
   };
 
