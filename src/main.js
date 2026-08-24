@@ -1,10 +1,9 @@
 import { GameSceneV38 } from './GameSceneV38.js';
-import './v38ProtagonistVisibilityFix.js';
-import './GameSceneV39.js';
-import './GameSceneV40.js?v=v40-protagonist-rescue-20260824-2';
-import './GameSceneV41.js?v=v41-protagonist-hard-fallback-20260824-1';
+import './GameSceneV42.js?v=v42-protagonist-production-reset-20260824-1';
 // Live chain: GameSceneV38 -> GameSceneV37 -> GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
-// V41 anchors a renderer directly to the physics player every frame. It uses the production PixelLab frame when available and a committed SVG body as a guaranteed fallback, so stale legacy sprite transforms cannot make the protagonist disappear.
+// V42 removes the stacked V39/V40/V41 rescue layers. One renderer now follows
+// the physics player and uses the normal production texture keys, with the SVG
+// body only as an explicit fallback when the production web asset is absent.
 
 let game = null;
 let startTimer = null;
