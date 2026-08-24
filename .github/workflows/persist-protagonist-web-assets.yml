@@ -1,0 +1,42 @@
+name: Persist protagonist web assets
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: persist-protagonist-web-assets
+  cancel-in-progress: true
+
+jobs:
+  persist:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build definitive protagonist web assets
+        run: |
+          set -euo pipefail
+          python scripts/build_protagonist_v27.py
+          python scripts/verify_protagonist_v27.py
+
+      - name: Commit generated protagonist assets to main
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f assets/v05/pixellab_protagonist src/pixellabManifest.js
+          if git diff --cached --quiet; then
+            echo "Generated protagonist assets already match main."
+            exit 0
+          fi
+          git commit -m "Persist generated protagonist web assets [skip ci]"
+          git push origin HEAD:main
