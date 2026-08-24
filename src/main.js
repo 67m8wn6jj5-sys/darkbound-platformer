@@ -1,9 +1,9 @@
 import { GameSceneV38 } from './GameSceneV38.js';
 import './GameSceneV42.js?v=v42-protagonist-production-reset-20260824-1';
+import './GameSceneV43.js?v=v43-dom-renderer-20260824-1';
 // Live chain: GameSceneV38 -> GameSceneV37 -> GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
-// V42 removes the stacked V39/V40/V41 rescue layers. One renderer now follows
-// the physics player and uses the normal production texture keys, with the SVG
-// body only as an explicit fallback when the production web asset is absent.
+// V43 bypasses Phaser texture rendering for the protagonist. The production PNG
+// frame is displayed through Phaser's DOM layer and follows the physics player.
 
 let game = null;
 let startTimer = null;
@@ -54,6 +54,7 @@ function startGame() {
   game = new Phaser.Game(config);
   game.events.once('ready', () => {
     document.documentElement.dataset.gameReady = 'true';
+    document.documentElement.dataset.build='v43';
     requestAnimationFrame(() => game?.scale?.refresh());
   });
 }
