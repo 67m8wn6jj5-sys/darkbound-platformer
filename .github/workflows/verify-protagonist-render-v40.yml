@@ -1,0 +1,23 @@
+name: Verify Protagonist Render V40
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'scripts/verify_protagonist_render_v40.mjs'
+      - 'index.html'
+      - '.github/workflows/verify-protagonist-render-v40.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-protagonist-render-v40:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify V40 independent protagonist renderer
+        run: node scripts/verify_protagonist_render_v40.mjs
+      - name: Parse-check V40 module
+        run: node --check src/GameSceneV40.js
