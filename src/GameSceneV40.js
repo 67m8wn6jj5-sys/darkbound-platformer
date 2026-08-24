@@ -5,7 +5,7 @@ import { RESCUE_PREFIX } from './GameSceneV39.js';
 const FALLBACK_CANONICAL='px-idle-east-000';
 const PLAYER_FEET_Y=24;
 export const PROTAGONIST_DEPTH_V40=600;
-export const V40_ENTRY_CACHE_BUST='v40-protagonist-rescue-20260824-1';
+export const V40_ENTRY_CACHE_BUST='v40-protagonist-rescue-20260824-2';
 
 function finite(value,fallback){return Number.isFinite(value)?value:fallback;}
 
@@ -20,9 +20,16 @@ function preferredTextureV40(){
 }
 
 function createDedicatedProtagonistV40(){
-  if(this.v40ProtagonistArt?.active!==false)return this.v40ProtagonistArt;
+  // Important: optional-chaining here previously made `undefined !== false`
+  // evaluate true, so the function returned before the rescue image was ever
+  // created. Only reuse the object when it actually exists and is still active.
+  if(this.v40ProtagonistArt && this.v40ProtagonistArt.active!==false){
+    return this.v40ProtagonistArt;
+  }
+
   const key=preferredTextureV40.call(this);
   if(!key||!this.player)return null;
+
   this.v40ProtagonistArt=this.add.image(
     this.player.x,
     this.player.y+PLAYER_FEET_Y,
@@ -32,7 +39,9 @@ function createDedicatedProtagonistV40(){
     .setDepth(PROTAGONIST_DEPTH_V40)
     .setScrollFactor(1,1)
     .setVisible(true)
+    .setActive(true)
     .setAlpha(1);
+
   return this.v40ProtagonistArt;
 }
 
