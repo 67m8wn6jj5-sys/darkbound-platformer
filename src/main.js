@@ -1,9 +1,9 @@
 import { GameSceneV38 } from './GameSceneV38.js';
-import './GameSceneV42.js?v=v42-protagonist-production-reset-20260824-1';
-import './GameSceneV43.js?v=v43-dom-renderer-20260824-1';
+import './GameSceneV44.js?v=v44-fixed-overlay-20260825-1';
 // Live chain: GameSceneV38 -> GameSceneV37 -> GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
-// V43 bypasses Phaser texture rendering for the protagonist. The production PNG
-// frame is displayed through Phaser's DOM layer and follows the physics player.
+// V44 removes the protagonist from Phaser's visual rendering paths entirely.
+// A normal fixed browser image is projected from the physics player's world
+// position onto the canvas rectangle every frame.
 
 let game = null;
 let startTimer = null;
@@ -46,7 +46,6 @@ function startGame() {
       gamepad: typeof navigator.getGamepads === 'function',
       activePointers: 5
     },
-    dom: { createContainer: true },
     scene: [GameSceneV38],
     render: { antialias: true, pixelArt: false }
   };
@@ -54,7 +53,7 @@ function startGame() {
   game = new Phaser.Game(config);
   game.events.once('ready', () => {
     document.documentElement.dataset.gameReady = 'true';
-    document.documentElement.dataset.build='v43';
+    document.documentElement.dataset.build='v44';
     requestAnimationFrame(() => game?.scale?.refresh());
   });
 }
