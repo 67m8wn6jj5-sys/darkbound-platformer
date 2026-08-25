@@ -9,6 +9,7 @@
   <title>Darkbound Platformer v0.1.2</title>
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="stylesheet" href="./style.css" />
+  <link rel="preload" as="image" href="./assets/v05/pixellab_protagonist/idle/east/frame_000.png?v=v44-fixed-overlay-20260825-1" />
 </head>
 <body>
   <main id="game-shell">
@@ -31,8 +32,8 @@
     </div>
   </main>
 
-  <div style="position:fixed;left:50%;bottom:3px;transform:translateX(-50%);z-index:99999;font:10px/1 monospace;color:#9aa3b5;opacity:.45;pointer-events:none">V43</div>
+  <div id="build-marker" style="position:fixed;left:50%;bottom:3px;transform:translateX(-50%);z-index:100000;font:10px/1 monospace;color:#9aa3b5;opacity:.55;pointer-events:none">V44 • BOOT</div>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js" crossorigin="anonymous"></script>
-  <script type="module" src="./src/main.js?v=v43-dom-renderer-20260824-1"></script>
+  <script type="module" src="./src/main.js?v=v44-fixed-overlay-20260825-1"></script>
 </body>
 </html>
