@@ -1,9 +1,8 @@
 import { GameSceneV38 } from './GameSceneV38.js';
-import './GameSceneV44.js?v=v44-fixed-overlay-20260825-1';
+import './GameSceneV45.js?v=v45-projection-20260826-1';
 // Live chain: GameSceneV38 -> GameSceneV37 -> GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
-// V44 removes the protagonist from Phaser's visual rendering paths entirely.
-// A normal fixed browser image is projected from the physics player's world
-// position onto the canvas rectangle every frame.
+// V45 keeps protagonist presentation as a body-level browser image and fixes
+// CSS projection independently of Phaser's canvas/backing-store pixel ratio.
 
 let game = null;
 let startTimer = null;
@@ -53,7 +52,7 @@ function startGame() {
   game = new Phaser.Game(config);
   game.events.once('ready', () => {
     document.documentElement.dataset.gameReady = 'true';
-    document.documentElement.dataset.build='v44';
+    document.documentElement.dataset.build='v45';
     requestAnimationFrame(() => game?.scale?.refresh());
   });
 }
