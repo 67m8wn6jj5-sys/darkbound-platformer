@@ -1,8 +1,8 @@
 import { GameSceneV38 } from './GameSceneV38.js';
-import './GameSceneV45.js?v=v45-projection-20260826-1';
+import './GameSceneV46.js?v=v46-physics-sync-20260826-1';
 // Live chain: GameSceneV38 -> GameSceneV37 -> GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
-// V45 keeps protagonist presentation as a body-level browser image and fixes
-// CSS projection independently of Phaser's canvas/backing-store pixel ratio.
+// V46 keeps the protagonist browser-image renderer, but projects it directly
+// from the same Phaser player physics body and camera scroll used by combat.
 
 let game = null;
 let startTimer = null;
@@ -52,7 +52,7 @@ function startGame() {
   game = new Phaser.Game(config);
   game.events.once('ready', () => {
     document.documentElement.dataset.gameReady = 'true';
-    document.documentElement.dataset.build='v45';
+    document.documentElement.dataset.build='v46';
     requestAnimationFrame(() => game?.scale?.refresh());
   });
 }
