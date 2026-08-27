@@ -1,9 +1,11 @@
 import { GameSceneV38 } from './GameSceneV38.js';
 import './GameSceneV48.js?v=v48-cathedral-bounds-root-fix-20260827-1';
+import './GameSceneV49.js?v=v49-grounding-scale-calibration-20260827-1';
 // Live chain: GameSceneV38 -> GameSceneV37 -> GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
 // V48 fixes the inherited V33 short-world bounds that were clamping the real
-// cathedral player to y≈996 while the authored floor lives near y=2448. The
-// temporary browser-image protagonist renderers are no longer part of boot.
+// cathedral player to y≈996 while the authored floor lives near y=2448.
+// V49 aligns cathedral physics to the same 32px grid as rendered terrain and
+// calibrates protagonist state scaling without changing gameplay dimensions.
 
 let game = null;
 let startTimer = null;
@@ -53,7 +55,7 @@ function startGame() {
   game = new Phaser.Game(config);
   game.events.once('ready', () => {
     document.documentElement.dataset.gameReady = 'true';
-    document.documentElement.dataset.build='v48';
+    document.documentElement.dataset.build='v49';
     requestAnimationFrame(() => game?.scale?.refresh());
   });
 }
