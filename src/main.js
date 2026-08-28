@@ -2,16 +2,13 @@ import { GameSceneV38 } from './GameSceneV38.js';
 import './GameSceneV48.js?v=v48-cathedral-bounds-root-fix-20260827-1';
 import './GameSceneV49.js?v=v49-grounding-scale-calibration-20260827-1';
 import './GameSceneV51.js?v=v51-canonical-protagonist-size-20260827-1';
-import './GameSceneV52.js?v=v52-hit-death-contact-20260827-1';
-import './GameSceneV53.js?v=v53-death-body-grounding-20260827-1';
+import './GameSceneV54.js?v=v54-protagonist-size-normalization-20260827-1';
 // Live chain: GameSceneV38 -> GameSceneV37 -> GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
-// V48 fixes the inherited V33 short-world bounds that were clamping the real
-// cathedral player to y≈996 while the authored floor lives near y=2448.
-// V49 aligns cathedral physics to the same 32px grid as rendered terrain.
-// V51 removes pose-sensitive V50 area scaling and prevents the eight-way turn
-// rotation frames from making the side-view protagonist appear to resize.
-// V52 tightens the hit scale. V53 replaces V52's too-small death correction
-// with body-contact grounding calibrated from the latest iPhone recording.
+// V48 fixes the inherited short-world bounds that clamped the cathedral player.
+// V49 aligns cathedral physics with rendered terrain.
+// V51 removes the oversized 8-direction turn poses during normal side-scrolling.
+// V54 replaces the V52/V53 state-scale stack with measured production-frame
+// normalization while preserving V53's approved death body-contact grounding.
 
 let game = null;
 let startTimer = null;
@@ -61,7 +58,7 @@ function startGame() {
   game = new Phaser.Game(config);
   game.events.once('ready', () => {
     document.documentElement.dataset.gameReady = 'true';
-    document.documentElement.dataset.build='v53';
+    document.documentElement.dataset.build='v54';
     requestAnimationFrame(() => game?.scale?.refresh());
   });
 }
