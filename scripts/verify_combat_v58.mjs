@@ -57,7 +57,7 @@ assert.match(main,/dataset\.build='v58'/);
 assert.match(patch,/cancelPlayerAttackV58\(this\)/);
 assert.match(patch,/bossSlamCanHitV58\(this\.player,enemy\)/);
 assert.match(patch,/bossLungeCanHitV58\(this\.player,enemy,elapsed\)/);
-assert.match(patch,/enemy\.type!==['"]boss1['"]/);
+assert.match(patch,/enemy\?\.type!==['"]boss1['"]/);
 assert.doesNotMatch(patch,/enemy\.state=['"]stagger['"]/);
 
 console.log('V58 combat correctness verification passed.');
