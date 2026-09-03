@@ -2,17 +2,17 @@ import { GameSceneV38 } from './GameSceneV38.js';
 import './GameSceneV48.js?v=v48-cathedral-bounds-root-fix-20260827-1';
 import './GameSceneV49.js?v=v49-grounding-scale-calibration-20260827-1';
 import './GameSceneV51.js?v=v51-canonical-protagonist-size-20260827-1';
-import './GameSceneV54.js?v=v54-protagonist-size-normalization-20260827-1';
 import './GameSceneV55.js?v=v55-clean-production-presentation-20260828-1';
 import './GameSceneV56.js?v=v56-remove-screen-space-bands-20260828-1';
+import './GameSceneV57.js?v=v57-protagonist-consistency-20260903-1';
 // Live chain: GameSceneV38 -> GameSceneV37 -> GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
 // V48 fixes the inherited short-world bounds that clamped the cathedral player.
 // V49 aligns cathedral physics with rendered terrain.
 // V51 removes the oversized 8-direction turn poses during normal side-scrolling.
-// V54 normalizes protagonist scale while preserving approved death grounding.
-// V55 removes legacy screen-locked V34 texture/fog overlays.
-// V56 also disables V35's overriding wall/architecture/near viewport layers,
-// which were the remaining hard-edged translucent horizontal bands.
+// V55/V56 remove legacy screen-space texture/fog bands.
+// V57 replaces V54's direction/state scale guesses with one canonical living
+// scale, mirrors the steadier west idle/run art for east, and stabilizes the run
+// contact anchor to eliminate the east-running jitter while preserving V53 death grounding.
 
 let game = null;
 let startTimer = null;
@@ -62,7 +62,7 @@ function startGame() {
   game = new Phaser.Game(config);
   game.events.once('ready', () => {
     document.documentElement.dataset.gameReady = 'true';
-    document.documentElement.dataset.build='v56';
+    document.documentElement.dataset.build='v57';
     requestAnimationFrame(() => game?.scale?.refresh());
   });
 }
