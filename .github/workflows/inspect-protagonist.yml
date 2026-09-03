@@ -46,6 +46,7 @@ jobs:
           node --experimental-default-type=module scripts/verify_combat_v19.mjs
           node --experimental-default-type=module scripts/verify_combat_v20.mjs
           node --experimental-default-type=module scripts/verify_combat_v21.mjs
+          node --experimental-default-type=module scripts/verify_combat_v58.mjs
 
       - name: Verify historical and current level systems
         run: |
@@ -88,6 +89,10 @@ jobs:
           done
           test "$READY" -eq 1
           curl -fsS "http://127.0.0.1:$PORT/src/main.js" >/tmp/main.js
+          curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV38.js" >/tmp/v38.js
+          curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV57.js" >/tmp/v57.js
+          curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV58.js" >/tmp/v58.js
+          curl -fsS "http://127.0.0.1:$PORT/src/combatRulesV58.js" >/tmp/combat58.js
           curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV33.js" >/tmp/v33.js
           curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV32.js" >/tmp/v32.js
           curl -fsS "http://127.0.0.1:$PORT/src/GameSceneV29.js" >/tmp/v29.js
@@ -96,8 +101,10 @@ jobs:
           curl -fsS "http://127.0.0.1:$PORT/assets/v05/pixellab_protagonist/attack_3/east/frame_000.png" >/tmp/attack3.png
           curl -fsS "http://127.0.0.1:$PORT/pixellab-tileset-ancient-dark-gothic-stone-masonry-large-a89e3ba5.png" >/tmp/gothic-terrain.png
           curl -fsS "http://127.0.0.1:$PORT/assets/v30/environment/lights/lights_00.png" >/tmp/light.png
+          test -s /tmp/v38.js -a -s /tmp/v57.js -a -s /tmp/v58.js -a -s /tmp/combat58.js
           test -s /tmp/v33.js -a -s /tmp/v32.js -a -s /tmp/v29.js
           test -s /tmp/attack1.png -a -s /tmp/attack2.png -a -s /tmp/attack3.png -a -s /tmp/gothic-terrain.png -a -s /tmp/light.png
+          grep -q 'GameSceneV58.js?v=v58-combat-correctness-20260903-1' /tmp/main.js
 
           CHROME=''
           for candidate in google-chrome google-chrome-stable chromium chromium-browser; do
