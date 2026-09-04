@@ -7,6 +7,7 @@ import './GameSceneV56.js?v=v56-remove-screen-space-bands-20260828-1';
 import './GameSceneV57.js?v=v57-protagonist-consistency-20260903-1';
 import './GameSceneV58.js?v=v58-combat-correctness-20260903-1';
 import './GameSceneV59.js?v=v59-blade-tracked-collision-20260904-1';
+import './GameSceneV60.js?v=v60-cathedral-jump-reach-20260904-1';
 // Live chain: GameSceneV38 -> GameSceneV37 -> GameSceneV36 -> GameSceneV35 -> GameSceneV34 -> GameSceneV33 -> GameSceneV32 -> GameSceneV31 -> GameSceneV30 -> GameSceneV29 -> GameSceneV28 -> GameSceneV27 -> GameSceneV26 -> GameSceneV25 -> GameSceneV24 -> GameSceneV23 -> GameSceneV22 -> GameSceneV21 -> GameSceneV20 -> GameSceneV19 -> GameSceneV18.
 // V48 fixes the inherited short-world bounds that clamped the cathedral player.
 // V49 aligns cathedral physics with rendered terrain.
@@ -18,6 +19,8 @@ import './GameSceneV59.js?v=v59-blade-tracked-collision-20260904-1';
 // committed boss lunge timing, and type-safe boss dash damage.
 // V59 makes sword damage follow V27's authored blade root/tip anchors and sweeps
 // between animation frames instead of using the original forward-range box.
+// V60 raises full-hold jump reach enough to clear the cathedral's 128px route
+// steps while preserving the existing variable-height short-hop behavior.
 
 let game = null;
 let startTimer = null;
@@ -53,7 +56,7 @@ function startGame() {
       height: 720
     },
     physics: {
-      default: 'arcade',
+      default: Phaser.AUTO,
       arcade: { debug: false }
     },
     input: {
@@ -67,7 +70,7 @@ function startGame() {
   game = new Phaser.Game(config);
   game.events.once('ready', () => {
     document.documentElement.dataset.gameReady = 'true';
-    document.documentElement.dataset.build='v59';
+    document.documentElement.dataset.build='v60';
     requestAnimationFrame(() => game?.scale?.refresh());
   });
 }
