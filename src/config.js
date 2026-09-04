@@ -4,7 +4,11 @@ export const TUNING = Object.freeze({
   groundDrag: 2500,
   airAcceleration: 1200,
   airDrag: 300,
-  jumpVelocity: -590,
+  // V60: the cathedral's first intended route ledge is 128 px above the entry
+  // floor. -590 only yielded ~120 px of full-hold rise at 1450 gravity, making
+  // that route unreachable. -700 yields ~169 px while the existing low-jump
+  // multiplier still preserves a short ~75 px tap/release hop.
+  jumpVelocity: -700,
   gravityY: 1450,
   fallGravityMultiplier: 1.7,
   lowJumpGravityMultiplier: 2.25,
