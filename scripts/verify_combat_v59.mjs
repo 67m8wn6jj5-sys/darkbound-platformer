@@ -36,9 +36,11 @@ assert.match(patch,/GameSceneV38\.prototype\.updateAttack=function/);
 assert.doesNotMatch(patch,/TUNING\.attackRanges/);
 assert.doesNotMatch(patch,/previousUpdateAttack/);
 assert.match(main,/GameSceneV59\.js\?v=v59-blade-tracked-collision-20260904-1/);
-assert.match(main,/dataset\.build='v59'/);
-assert.match(index,/V59 • BOOT/);
-assert.match(index,/main\.js\?v=v59-blade-tracked-collision-20260904-1/);
+// V59 remains a required combat layer beneath later builds. Verify that the
+// current runtime still imports it without freezing the overall build marker or
+// index cache-bust at v59 forever.
+assert.match(main,/dataset\.build='v\d+'/);
+assert.match(index,/src\/main\.js\?v=/);
 
 console.log('V59 blade-tracked collision verification passed.');
 console.log(`Blade radius: ${COMBAT_V59.bladeRadius}px; sweep samples: ${COMBAT_V59.sweepSamples}.`);
