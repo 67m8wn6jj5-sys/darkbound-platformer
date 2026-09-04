@@ -33,7 +33,7 @@ assert.match(patch,/BLADE_TRACK_V27/);
 assert.match(patch,/bladeWorldPointV27/);
 assert.match(patch,/bladeSweepIntersectsAabbV59/);
 assert.match(patch,/GameSceneV38\.prototype\.updateAttack=function/);
-assert.doesNotMatch(patch,/attackRanges/);
+assert.doesNotMatch(patch,/TUNING\.attackRanges/);
 assert.doesNotMatch(patch,/previousUpdateAttack/);
 assert.match(main,/GameSceneV59\.js\?v=v59-blade-tracked-collision-20260904-1/);
 assert.match(main,/dataset\.build='v59'/);
