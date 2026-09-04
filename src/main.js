@@ -56,7 +56,7 @@ function startGame() {
       height: 720
     },
     physics: {
-      default: Phaser.AUTO,
+      default: 'arcade',
       arcade: { debug: false }
     },
     input: {
