@@ -53,7 +53,10 @@ assert.equal(bossLungeCanHitV58(target,lungeBoss,150),true);
 const main=fs.readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
 const patch=fs.readFileSync(new URL('../src/GameSceneV58.js',import.meta.url),'utf8');
 assert.match(main,/GameSceneV58\.js\?v=v58-combat-correctness-20260903-1/);
-assert.match(main,/dataset\.build='v58'/);
+// V58 is a retained combat layer beneath later builds, so its regression test
+// verifies that the patch is still imported instead of pinning the current build
+// marker to v58 forever.
+assert.match(main,/dataset\.build='v\d+'/);
 assert.match(patch,/cancelPlayerAttackV58\(this\)/);
 assert.match(patch,/bossSlamCanHitV58\(this\.player,enemy\)/);
 assert.match(patch,/bossLungeCanHitV58\(this\.player,enemy,elapsed\)/);
